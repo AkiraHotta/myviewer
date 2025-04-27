@@ -104,27 +104,16 @@
         });
       });
 
-       /* ====== 追加：いま再生中の videoId を記録 ====== */
-  let currentPlaying = null;
-
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    const card  = entry.target;
-    const video = card.querySelector('video');
-    if (card.style.display === 'none') return;
-
-    if (entry.isIntersecting) {
-      // すでに他が再生中なら無視
-      if (currentPlaying && currentPlaying !== video.id) return;
-
-      currentPlaying = video.id;
-      setTimeout(() => play(video.dataset.src, video.id), 0);
-    } else if (currentPlaying === video.id) {
-      stop(video.id);
-      currentPlaying = null;
-    }
-  });
-}, { threshold: 0.1 });
+      // IntersectionObserverで自動再生/停止
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          const card = entry.target;
+          const video = card.querySelector('video');
+          if (card.style.display === 'none') return;
+          if (entry.isIntersecting) play(video.dataset.src, video.id);
+          else stop(video.id);
+        });
+      }, { threshold: 0.1 });
       cameraCards.forEach(card => observer.observe(card));
 
           // ── ここからメニュー開閉統合処理 ──
@@ -156,28 +145,41 @@ const observer = new IntersectionObserver((entries) => {
 
 
     if (Hls.isSupported()) {
-  const hls = new Hls();
-  const to = setTimeout(() => {          // ★3 秒で諦める
-    console.warn(`[${videoId}] timeout`);
-    hls.destroy();
-    currentPlaying = null;               // 再生ロック解除
-  }, 3000);
+      const hls = new Hls();
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        video.style.display = 'block';
 
-  hls.loadSource(url);
-  hls.attachMedia(video);
+      
 
-  hls.on(Hls.Events.MANIFEST_PARSED, () => {
-    clearTimeout(to);                    // 成功したのでタイマー解除
-    video.style.display = 'block';
-    video.play().catch(console.warn);
-  });
+        video.play();
 
-  hls.on(Hls.Events.ERROR, () => {       // 失敗したら即破棄
-    clearTimeout(to);
-    hls.destroy();
-    currentPlaying = null;
-  });
-}
+      // 既存のインターバルがあればクリア
+      if (driftIntervals.has(videoId)) {
+        clearInterval(driftIntervals.get(videoId));
+      }
+
+      // 差分チェック開始（15秒ごと）
+      const intervalId = setInterval(() => {
+        if (video.paused) return;
+
+        // seekable を使う
+        const seekable = video.seekable;
+        if (!seekable.length) return;
+
+        const liveEnd = seekable.end(seekable.length - 1);
+        const diff = liveEnd - video.currentTime;
+        console.log(`[${videoId}] drift: ${diff.toFixed(1)}s`);
+        if (diff > 30) {
+          // ライブ末尾までシーク
+          video.currentTime = liveEnd;
+        }
+      }, 15000);
+
+      driftIntervals.set(videoId, intervalId);
+    });
+  }
   else if (video.canPlayType('application/vnd.apple.mpegurl')) {
     video.src = url;
     video.style.display = 'block';
@@ -210,13 +212,7 @@ function stop(videoId) {
 <script src="https://unpkg.com/pulltorefreshjs"></script>
 <script>
   PullToRefresh.init({
-    mainElement: 'body',          // ここでリロード範囲指定
-    distThreshold: 60,            // 何px引っ張ったら発動するか
-    distMax: 80,                  // 引っ張れる最大距離
-    distReload: 70,               // グルグルが表示される距離
-    instructionsPullToRefresh: '引っ張って更新',   // 表示メッセージ
-    instructionsReleaseToRefresh: '離して更新',
-    instructionsRefreshing: '更新中...',
+    mainElement: 'body',
     onRefresh() {
       location.reload();
     }
@@ -336,12 +332,6 @@ button.selected {
     padding-left: 10px;  /* 左右に余白 */
     padding-right: 10px;
   }
-}
-.ptr--ptr {
-  font-size: 16px;
-  color: #feffff;        /* 好きな色 */
-  text-align: center;
-  padding: 10px;
 }
   </style>
 </body>
