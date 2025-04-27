@@ -36,9 +36,9 @@
            data-tag-ids="{{ camera_tag_map[camera.id]|join(',') }}">
         <h2>{{ camera.name }}</h2>
         <video id="video-{{ camera.id }}"
-              muted controls playsinline preload="none"
-              data-src="{{ camera.stream_url }}"
-              style="visibility:hidden;"></video>
+               muted controls playsinline preload="none"
+               data-src="{{ camera.stream_url }}"
+               style="display:none;"></video>
       </div>
     {% endfor %}
   </div>
@@ -148,8 +148,7 @@ function cleanup(video){
   video.pause();
   video.removeAttribute('src');
   video.load();
-  
-  video.style.visibility = 'hidden';   // ← display ではなく visibility
+  video.style.display = 'none';
 }
 
 /* ===== 再生開始 ===== */
@@ -163,7 +162,7 @@ function play(url, videoId){
   /* iOS ネイティブ HLS */
   if (video.canPlayType('application/vnd.apple.mpegurl')){
     video.src = url;
-    
+    video.style.display = 'block';
     video.play().catch(console.warn);
     return;
   }
@@ -184,7 +183,7 @@ function play(url, videoId){
 
     hls.on(Hls.Events.MANIFEST_PARSED,()=>{
       clearTimeout(video._timeout);
-      video.style.visibility = 'visible';   // ← ココを変更
+      video.style.display = 'block';
       video.play().catch(console.warn);
     });
 
@@ -200,7 +199,6 @@ function stop(videoId){
   if (video.dataset.loading === '1' || video.src){
     cleanup(video);
   }
-  video.style.visibility = 'hidden';     // 黒い箱だけ残す
 }
 </script>
 
@@ -331,12 +329,30 @@ button.selected {
     padding-right: 10px;
   }
 }
-/* 高さを先に確保してレイアウトシフトを防ぐ */
+
+/* ===== 1. カードを「高さ可変の白い箱」にする ===== */
+.camera-card{
+  position:relative;            /* ← video を中に絶対配置するため */
+  background:#fff;              /* ← 今見えている白を維持 */
+  border-radius:12px;
+  overflow:hidden;              /* video がハミ出ないように */
+}
+
+/* 疑似要素で 16:9 の “空の高さ” を確保 */
+.camera-card::before{
+  content:'';
+  display:block;
+  padding-top:56.25%;           /* 16 / 9 = 0.5625 → 56.25% */
+}
+
+/* ===== 2. video をカードいっぱいに重ねる ===== */
 .camera-card video{
+  position:absolute;
+  inset:0;                      /* top:0; right:0; bottom:0; left:0; と同義 */
   width:100%;
-  aspect-ratio:16 / 9;      /* 必要なら 4 / 3 などに変更 */
-  background:#000;          /* ロード中は黒い箱 */
+  height:100%;
   object-fit:cover;
+  visibility:hidden;            /* 初期は非表示だが “高さ” は親で確保済み */
 }
   </style>
 </body>
