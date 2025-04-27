@@ -2,11 +2,22 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
+import os
+
 
 app = Flask(__name__)
 app.secret_key = 'CHANGE_THIS_TO_A_SECRET_KEY'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///cameras.db'
+
+
+# --- データベース設定 ---
+DATABASE_URL = os.getenv('DATABASE_URL')
+if DATABASE_URL:
+    app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL  # Render用(PostgreSQL)
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///cameras.db'  # ローカル用(SQLite)
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 db = SQLAlchemy(app)
 
 # --- モデル定義 ---
