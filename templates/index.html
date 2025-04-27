@@ -6,9 +6,12 @@
   <title>MyViewerApp</title>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <meta name="theme-color" content="#007bff">
 </head>
 <body>
   {% include 'header.html' %}
+  {% extends "base.html" %}
 
   <!-- タグフィルターとレイアウト切替アイコン -->
   <div id="controls" class="controls-bar">

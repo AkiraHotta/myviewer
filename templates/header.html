@@ -1,5 +1,7 @@
 <header class="site-header">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <meta name="theme-color" content="#007bff">
   <div class="header-inner">
     <!-- ロゴ -->
     <a href="/" class="logo">MY AI Viewer</a>
@@ -7,6 +9,7 @@
     <!-- アカウント名＋ハンバーガーメニューをまとめて右寄せ -->
     <div class="user-menu">
       {% if session.username %}
+      {% extends "base.html" %}
         <span class="user-name">{{ session.username }} さん</span>
       {% endif %}
       <!-- ハンバーガーアイコン（常に表示） -->

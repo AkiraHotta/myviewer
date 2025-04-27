@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <meta name="theme-color" content="#007bff">
   <title>ログイン</title>
   <style>
     body {
@@ -68,6 +70,7 @@
       <button type="submit">ログイン</button>
     </form>
     {% with messages = get_flashed_messages() %}
+    {% extends "base.html" %}
       {% if messages %}
         <div class="messages">
           {% for m in messages %}
