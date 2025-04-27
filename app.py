@@ -8,7 +8,7 @@ import os
 load_dotenv()  # ← ここで.env読み込み
 
 app = Flask(__name__)
-app.secret_key = 'CHANGE_THIS_TO_A_SECRET_KEY'
+app.secret_key = os.getenv('SECRET_KEY')
 
 
 # --- データベース設定 ---
@@ -67,7 +67,7 @@ def login():
         if user and check_password_hash(user.password, p):
             session['user_id']   = user.id
             session['username']  = user.username
-            session['user_role'] = user.role
+            session['user_role'] = int(user.role)   # ← 明示的に int() で
             return redirect(url_for('index'))
         flash('ログインに失敗しました')
     return render_template('login.html')
@@ -198,6 +198,7 @@ def update_tag(tag_id):
 @app.route('/account', methods=['GET','POST'])
 @login_required
 def account():
+    print("▶ session:", dict(session))    # ← ここを追加
     if session.get('user_role') != 1:
         return "管理者ではありません", 403
 
