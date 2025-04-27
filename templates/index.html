@@ -36,9 +36,9 @@
            data-tag-ids="{{ camera_tag_map[camera.id]|join(',') }}">
         <h2>{{ camera.name }}</h2>
         <video id="video-{{ camera.id }}"
-               muted controls playsinline preload="none"
-               data-src="{{ camera.stream_url }}"
-               style="display:none;"></video>
+              muted controls playsinline preload="none"
+              data-src="{{ camera.stream_url }}"
+              style="visibility:hidden;"></video>
       </div>
     {% endfor %}
   </div>
@@ -113,7 +113,7 @@
           if (entry.isIntersecting) play(video.dataset.src, video.id);
           else stop(video.id);
         });
-      }, { threshold: 0.1 });
+      }, { threshold: 0.5 });
       cameraCards.forEach(card => observer.observe(card));
 
           // ── ここからメニュー開閉統合処理 ──
@@ -148,7 +148,8 @@ function cleanup(video){
   video.pause();
   video.removeAttribute('src');
   video.load();
-  video.style.display = 'none';
+  
+  video.style.visibility = 'hidden';   // ← display ではなく visibility
 }
 
 /* ===== 再生開始 ===== */
@@ -162,7 +163,7 @@ function play(url, videoId){
   /* iOS ネイティブ HLS */
   if (video.canPlayType('application/vnd.apple.mpegurl')){
     video.src = url;
-    video.style.display = 'block';
+    
     video.play().catch(console.warn);
     return;
   }
@@ -183,7 +184,7 @@ function play(url, videoId){
 
     hls.on(Hls.Events.MANIFEST_PARSED,()=>{
       clearTimeout(video._timeout);
-      video.style.display = 'block';
+      video.style.visibility = 'visible';   // ← ココを変更
       video.play().catch(console.warn);
     });
 
@@ -199,6 +200,7 @@ function stop(videoId){
   if (video.dataset.loading === '1' || video.src){
     cleanup(video);
   }
+  video.style.visibility = 'hidden';     // 黒い箱だけ残す
 }
 </script>
 
@@ -328,6 +330,13 @@ button.selected {
     padding-left: 10px;  /* 左右に余白 */
     padding-right: 10px;
   }
+}
+/* 高さを先に確保してレイアウトシフトを防ぐ */
+.camera-card video{
+  width:100%;
+  aspect-ratio:16 / 9;      /* 必要なら 4 / 3 などに変更 */
+  background:#000;          /* ロード中は黒い箱 */
+  object-fit:cover;
 }
   </style>
 </body>
