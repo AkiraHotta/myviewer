@@ -110,7 +110,9 @@
           const card = entry.target;
           const video = card.querySelector('video');
           if (card.style.display === 'none') return;
-          if (entry.isIntersecting) play(video.dataset.src, video.id);
+          if (entry.isIntersecting) {
+            setTimeout(() => play(video.dataset.src, video.id), 0);  // ここ追加！
+          }
           else stop(video.id);
         });
       }, { threshold: 0.1 });
@@ -204,8 +206,20 @@ function stop(videoId) {
     driftIntervals.delete(videoId);
   }
 }
+</script>
 
-  </script>
+
+<!-- 最後にスクリプト -->
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+<script src="https://unpkg.com/pulltorefreshjs"></script>
+<script>
+  PullToRefresh.init({
+    mainElement: 'body',
+    onRefresh() {
+      location.reload();
+    }
+  });
+</script>
 
 
 
@@ -317,7 +331,8 @@ button.selected {
 
 
     video {
-      pointer-events: none;  /* 動画タップ無効 → スクロールできる */
+    padding-left: 10px;  /* 左右に余白 */
+    padding-right: 10px;
   }
 }
   </style>
