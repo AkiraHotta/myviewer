@@ -18,12 +18,8 @@
       align-items: center;
       gap: 0.5rem;
     }
-    /* ── アカウント／パスワード／権限 の幅調整 ── */
-    #username-input,
-    #password-input {
-      flex: 1 1 150px;   /* 最小150px、余白あれば伸びる */
-      max-width: 250px;  /* 最大250px くらいに制限 */
-    }
+  
+    
     #role-select {
       flex: 0 0 100px;   /* 固定幅 */
     }
@@ -89,6 +85,55 @@
 
 #selected-tags span button:hover {
   color: #fff;
+}
+/* ── スマホ対応 ── */
+@media (max-width: 768px) {
+  body {
+    padding: 1rem; /* 全体の余白を調整 */
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+  }
+
+
+
+
+  /* タグ追加ボタンも全幅 */
+  #add-tag {
+    width: 100%;
+  }
+
+  /* 選択済みタグ（バッジ）は横並び維持、縮める */
+  #selected-tags span {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.6rem;
+  }
+
+  /* アカウントリスト（li）の表示変更 */
+  #account-list li {
+    flex-direction: column; /* 縦並びに変更 */
+    align-items: stretch;
+  }
+
+  /* ユーザー情報は下に余白をつける */
+  #account-list .user-info {
+    margin-bottom: 0.5rem;
+  }
+
+  /* ボタンを縦並びに */
+  #account-list .actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  /* 編集・削除・キャンセルボタンを全幅に */
+  .edit-btn, .delete-btn, .cancel-btn {
+    width: 100%;
+    margin-left: 0;
+  }
 }
   </style>
 </head>

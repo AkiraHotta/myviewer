@@ -101,6 +101,8 @@ h1 {
   border: 1px solid #d1d1d6;
   background: #fff;
   color: #1d1d1f;
+  height: auto; /* 追加: 高さは自動 */
+  box-sizing: border-box; /* 追加: パディング込みで高さ調整 */
 }
 
 .controls button {
@@ -372,4 +374,73 @@ li input[type="text"] {
   font-size: 1rem;
   width: 200px;
   margin-right: 0.5rem;
+}
+
+/* スマホ向けレスポンシブ */
+@media (max-width: 768px) {
+  body {
+    padding: 1rem; /* 全体余白を少し狭く */
+  }
+
+  /* ヘッダー */
+  .site-header {
+    flex-direction: column; /* 縦並びにする */
+    align-items: flex-start;
+  }
+
+  .header-inner {
+    flex-direction: row; /* ロゴとハンバーガーは横並び */
+    width: 100%;
+  }
+
+  .logo {
+    font-size: 1.2rem; /* ロゴ少し小さく */
+  }
+
+  /* カメラグリッドを1列に */
+  .camera-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* メニュー */
+  .menu {
+    right: 0.5rem; /* 右側の余白を少し減らす */
+    min-width: 140px;
+  }
+
+  /* フォームの入力とボタンを縦並びに */
+  .controls > div {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* セレクトボックスとボタンも全幅に */
+  .controls select,
+  .controls input,
+  .controls button {
+    width: 100%;
+  }
+
+  /* カメラカードの余白調整 */
+  .camera-card {
+    padding: 0.75rem;
+  }
+
+  /* 編集・削除ボタンの配置変更 */
+  li {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  li input[type="text"] {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+
+  .edit-btn, .delete-btn, .cancel-btn {
+    width: 100%;
+    margin-left: 0;
+    margin-bottom: 0.5rem;
+  }
+
 }

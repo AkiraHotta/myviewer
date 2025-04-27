@@ -119,6 +119,66 @@
       color: #fff;
     }
 
+    /* スマホ対応（768px以下） */
+@media (max-width: 768px) {
+  body {
+    padding: 1rem; /* 余白調整 */
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  /* フォーム行：横並び → 縦並び */
+  .form-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* 入力欄・セレクト・ボタンは全幅に */
+  .form-row input[type="text"],
+  .form-row select,
+  .form-row button {
+    width: 100%;
+    font-size: 0.9rem;
+    height: 2.5rem;
+  }
+
+  /* タグ追加ボタンは高さ調整 */
+  #add-camera {
+    height: 2.5rem;
+  }
+
+  /* バッジ（カメラ表示）も少し小さく */
+  #selected-cameras .camera-badge {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.6rem;
+  }
+
+  /* タグリスト（li）の配置変更 */
+  ul.tag-list li {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* タグ情報とボタンの間に余白 */
+  .tag-info {
+    margin-bottom: 0.5rem;
+  }
+
+  /* 編集・削除ボタンは縦並び */
+  .tag-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .tag-actions button {
+    width: 100%;
+  }
+}
+
   </style>
 </head>
 <body>
