@@ -271,36 +271,38 @@ def update_user(user_id):
     return '', 204
 
 
-if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
+# --- 初期データ作成 ---
+@app.before_first_request
+def setup_database():
+    db.create_all()
 
-        admin = User.query.filter_by(username='admin').first()
-        if not admin:
-            admin = User(username='admin',
-                         password=generate_password_hash('1213'),
-                         role=1)
-            db.session.add(admin)
-            db.session.commit()
-
-        # 「全てのカメラ」タグ作成（なければ）
-        all_tag = Tag.query.filter_by(tag_name='全てのカメラ').first()
-        if not all_tag:
-            all_tag = Tag(tag_name='全てのカメラ')
-            db.session.add(all_tag)
-            db.session.commit()
-
-        # adminに「全てのカメラ」タグのみを付与（他は付与しない）
-        if not TagUser.query.filter_by(user_id=admin.id, tag_id=all_tag.id).first():
-            TagUser.query.filter_by(user_id=admin.id).delete()  # 既存のタグを全削除
-            db.session.add(TagUser(user_id=admin.id, tag_id=all_tag.id))
-            db.session.commit()
-
-        # 「全てのカメラ」タグに全カメラを紐づけ（自動反映）
-        for cam in Camera.query.all():
-            if not TagCamera.query.filter_by(tag_id=all_tag.id, camera_id=cam.id).first():
-                db.session.add(TagCamera(tag_id=all_tag.id, camera_id=cam.id))
+    admin = User.query.filter_by(username='admin').first()
+    if not admin:
+        admin = User(username='admin',
+                     password=generate_password_hash('1213'),
+                     role=1)
+        db.session.add(admin)
         db.session.commit()
-        
 
+    all_tag = Tag.query.filter_by(tag_name='全てのカメラ').first()
+    if not all_tag:
+        all_tag = Tag(tag_name='全てのカメラ')
+        db.session.add(all_tag)
+        db.session.commit()
+
+    if not TagUser.query.filter_by(user_id=admin.id, tag_id=all_tag.id).first():
+        TagUser.query.filter_by(user_id=admin.id).delete()
+        db.session.add(TagUser(user_id=admin.id, tag_id=all_tag.id))
+        db.session.commit()
+
+    for cam in Camera.query.all():
+        if not TagCamera.query.filter_by(tag_id=all_tag.id, camera_id=cam.id).first():
+            db.session.add(TagCamera(tag_id=all_tag.id, camera_id=cam.id))
+    db.session.commit()
+
+if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000)
+
+
+
+    
