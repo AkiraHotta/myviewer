@@ -1,9 +1,10 @@
-{# ファイル先頭で必ず extends を宣言 #}
-{% extends "base.html" %}
-
-{% block title %}アカウント管理 | MyViewerApp{% endblock %}
-
-{% block extra_head %}
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>アカウント管理</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <style>
     /* ── フォーム全体を縦に並べる ── */
     .controls {
@@ -135,10 +136,10 @@
     margin-left: 0;
   }
 }
-</style>
-{% endblock %}
-
-{% block content %}
+  </style>
+</head>
+<body>
+  {% include 'header.html' %}
   <h1>アカウント管理</h1>
 
   <form id="account-form" class="controls" method="post">
