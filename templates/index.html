@@ -305,6 +305,14 @@ button.selected {
 #camera-grid.four {
   grid-template-columns: repeat(4, 1fr);
 }
+
+@media (max-width: 768px) {
+  /* レイアウトボタンのうち、3列・4列ボタンを非表示 */
+  #btn-3col,
+  #btn-4col {
+    display: none;
+  }
+}
   </style>
 </body>
 </html>
