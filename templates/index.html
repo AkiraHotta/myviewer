@@ -38,7 +38,7 @@
         <video id="video-{{ camera.id }}"
                muted controls playsinline preload="none"
                data-src="{{ camera.stream_url }}"
-               style="display:none;"></video>
+               style="visibility:hidden;"></video>
       </div>
     {% endfor %}
   </div>
@@ -148,7 +148,7 @@ function cleanup(video){
   video.pause();
   video.removeAttribute('src');
   video.load();
-  video.style.display = 'none';
+  video.style.visibility = 'hidden';
 }
 
 /* ===== 再生開始 ===== */
@@ -162,7 +162,7 @@ function play(url, videoId){
   /* iOS ネイティブ HLS */
   if (video.canPlayType('application/vnd.apple.mpegurl')){
     video.src = url;
-    video.style.display = 'block';
+    video.style.visibility = 'visible';
     video.play().catch(console.warn);
     return;
   }
@@ -183,7 +183,7 @@ function play(url, videoId){
 
     hls.on(Hls.Events.MANIFEST_PARSED,()=>{
       clearTimeout(video._timeout);
-      video.style.display = 'block';
+      video.style.visibility = 'visible';
       video.play().catch(console.warn);
     });
 
@@ -199,6 +199,7 @@ function stop(videoId){
   if (video.dataset.loading === '1' || video.src){
     cleanup(video);
   }
+  video.style.visibility = 'hidden';
 }
 </script>
 
