@@ -134,74 +134,70 @@
       }
     });
 
-    // videoId → intervalId のマップ
-  const driftIntervals = new Map();
+   
 
-  function play(url, videoId) {
-    const video = document.getElementById(videoId);
-    if (video.src && !video.paused) return;
+  /* ===== 共通クリーンアップ ===== */
+function cleanup(video){
+  if (video._timeout) clearTimeout(video._timeout);
+  if (video._hls)     video._hls.destroy();
 
+  delete video._timeout;
+  delete video._hls;
+  delete video.dataset.loading;
 
-
-
-    if (Hls.isSupported()) {
-      const hls = new Hls();
-      hls.loadSource(url);
-      hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        video.style.display = 'block';
-
-      
-
-        video.play();
-
-      // 既存のインターバルがあればクリア
-      if (driftIntervals.has(videoId)) {
-        clearInterval(driftIntervals.get(videoId));
-      }
-
-      // 差分チェック開始（15秒ごと）
-      const intervalId = setInterval(() => {
-        if (video.paused) return;
-
-        // seekable を使う
-        const seekable = video.seekable;
-        if (!seekable.length) return;
-
-        const liveEnd = seekable.end(seekable.length - 1);
-        const diff = liveEnd - video.currentTime;
-        console.log(`[${videoId}] drift: ${diff.toFixed(1)}s`);
-        if (diff > 30) {
-          // ライブ末尾までシーク
-          video.currentTime = liveEnd;
-        }
-      }, 15000);
-
-      driftIntervals.set(videoId, intervalId);
-    });
-  }
-  else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-    video.src = url;
-    video.style.display = 'block';
-    video.play();
-  }
-  else {
-    alert('このブラウザでは再生できません');
-  }
-}
-
-function stop(videoId) {
-  const video = document.getElementById(videoId);
-  if (!video.src) return;
   video.pause();
   video.removeAttribute('src');
   video.load();
   video.style.display = 'none';
+}
 
-  // インターバルをクリア
-  if (driftIntervals.has(videoId)) {
-    clearInterval(driftIntervals.get(videoId));
-    driftIntervals.delete(videoId);
+/* ===== 再生開始 ===== */
+function play(url, videoId){
+  const video = document.getElementById(videoId);
+
+  // すでにロード or 再生中なら無視
+  if (video.dataset.loading === '1') return;
+  video.dataset.loading = '1';
+
+  /* iOS ネイティブ HLS */
+  if (video.canPlayType('application/vnd.apple.mpegurl')){
+    video.src = url;
+    video.style.display = 'block';
+    video.play().catch(console.warn);
+    return;
+  }
+
+  /* Hls.js */
+  if (Hls.isSupported()){
+    const hls = new Hls();
+    video._hls = hls;
+
+    // ★10 秒で諦める
+    video._timeout = setTimeout(()=>{
+      console.warn(`[${videoId}] timeout`);
+      cleanup(video);
+    }, 10000);
+
+    hls.loadSource(url);
+    hls.attachMedia(video);
+
+    hls.on(Hls.Events.MANIFEST_PARSED,()=>{
+      clearTimeout(video._timeout);
+      video.style.display = 'block';
+      video.play().catch(console.warn);
+    });
+
+    hls.on(Hls.Events.ERROR,()=>{
+      cleanup(video);
+    });
+  }
+}
+
+/* ===== 停止（画面外へ出た時も呼ばれる）===== */
+function stop(videoId){
+  const video = document.getElementById(videoId);
+  if (video.dataset.loading === '1' || video.src){
+    cleanup(video);
   }
 }
 </script>
