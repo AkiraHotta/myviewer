@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>MyViewerAppカメラ管理</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+ 
+</head>
+<body>
+    {% include 'header.html' %}
+
+    <h1>カメラ管理</h1>
+    
+    <form method="post" class="controls">
+      <input type="text" name="camera_name" placeholder="カメラ名" required>
+      <input type="text" name="stream_url" placeholder="HLS URL" required>
+      <button type="submit">登録</button>
+    </form>
+    
+    <ul>
+      {% for camera in cameras %}
+        <li data-id="{{ camera.id }}">
+          <span class="camera-name">{{ camera.name }}</span> 
+          (<span class="camera-url">{{ camera.stream_url }}</span>)
+          <button class="edit-btn" type="button">編集</button>
+          <button class="delete-btn" type="button" data-url="{{ url_for('delete_camera', camera_id=camera.id) }}">削除</button>
+        </li>
+      {% endfor %}
+    </ul>
+    
+    <script>
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const url = btn.dataset.url;
+            if (confirm('本当に削除しますか？')) {
+            window.location.href = url;
+            }
+        });
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+        const menuToggle = document.querySelector('.menu-toggle');
+        const menu = document.getElementById('menu');
+        menuToggle.addEventListener('click', function() {
+          menu.classList.toggle('show');
+        });
+
+  // 編集ボタン動作
+  document.querySelectorAll('.edit-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const li = btn.closest('li');
+      const nameSpan = li.querySelector('.camera-name');
+      const urlSpan = li.querySelector('.camera-url');
+      const deleteBtn = li.querySelector('.delete-btn');
+
+      if (btn.textContent === '編集') {
+        // 編集モード
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.value = nameSpan.textContent;
+        nameInput.classList.add('edit-name');
+
+        const urlInput = document.createElement('input');
+        urlInput.type = 'text';
+        urlInput.value = urlSpan.textContent;
+        urlInput.classList.add('edit-url');
+
+        nameSpan.replaceWith(nameInput);
+        urlSpan.replaceWith(urlInput);
+        btn.textContent = '保存';
+        deleteBtn.style.display = 'none';
+
+        // キャンセルボタン追加
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'キャンセル';
+        cancelBtn.classList.add('cancel-btn');
+        cancelBtn.type = 'button';
+        btn.insertAdjacentElement('afterend', cancelBtn);
+
+        // キャンセル動作
+        cancelBtn.addEventListener('click', function() {
+          nameInput.replaceWith(nameSpan);
+          urlInput.replaceWith(urlSpan);
+          btn.textContent = '編集';
+          deleteBtn.style.display = 'inline-block';
+          cancelBtn.remove();
+        });
+
+      } else {
+        // 保存モード
+        const newName = li.querySelector('.edit-name').value;
+        const newUrl = li.querySelector('.edit-url').value;
+        const cameraId = li.getAttribute('data-id');
+
+        fetch(`/update_camera/${cameraId}`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({name: newName, stream_url: newUrl})
+        }).then(() => location.reload());
+      }
+    });
+  });
+});
+    </script>

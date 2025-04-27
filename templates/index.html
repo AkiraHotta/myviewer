@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>MyViewerApp</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  {% include 'header.html' %}
+
+  <!-- タグフィルターとレイアウト切替アイコン -->
+  <div id="controls" class="controls-bar">
+    <div id="tag-filters" class="tag-filter">
+      <button class="tag-btn all-btn" data-tag-id="">全表示</button>
+      {% for tag in tags %}
+        <button class="tag-btn" data-tag-id="{{ tag.id }}">{{ tag.tag_name }}</button>
+      {% endfor %}
+    </div>
+    <div id="layout-switch" class="layout-switch">
+      <button id="btn-single" class="layout-btn" title="縦1列表示">■<br>■</button>
+      <button id="btn-grid" class="layout-btn" title="横2列表示">■■</button>
+      <button id="btn-3col" class="layout-btn" title="横3列表示">■x3</button>
+      <button id="btn-4col" class="layout-btn" title="横4列表示">■x4</button>
+    </div>
+  </div>
+
+  <!-- カメラグリッド -->
+  <div id="camera-grid" class="camera-grid grid">
+    {% for camera in cameras %}
+      <div class="camera-card"
+           data-tag-ids="{{ camera_tag_map[camera.id]|join(',') }}">
+        <h2>{{ camera.name }}</h2>
+        <video id="video-{{ camera.id }}"
+               muted controls playsinline preload="none"
+               data-src="{{ camera.stream_url }}"
+               style="display:none;"></video>
+      </div>
+    {% endfor %}
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const tagButtons = document.querySelectorAll('.tag-btn');
+      const cameraCards = document.querySelectorAll('.camera-card');
+      const btnSingle = document.getElementById('btn-single');
+      const btnGrid = document.getElementById('btn-grid');
+      const gridEl = document.getElementById('camera-grid');
+
+      const btn3col = document.getElementById('btn-3col');
+      const btn4col = document.getElementById('btn-4col');
+
+      btn3col.addEventListener('click', () => changeLayout('three'));
+      btn4col.addEventListener('click', () => changeLayout('four'));
+
+      function applyLayout(mode) {
+        gridEl.classList.remove('single', 'grid', 'three', 'four');  // 全削除
+        gridEl.classList.add(mode);
+
+        btnSingle.classList.toggle('selected', mode === 'single');
+        btnGrid.classList.toggle('selected', mode === 'grid');
+        btn3col.classList.toggle('selected', mode === 'three');
+        btn4col.classList.toggle('selected', mode === 'four');
+      }
+
+      // レイアウトをLocalStorageから復元 (grid または single)
+      let layout = localStorage.getItem('layout') || 'single';
+      applyLayout(layout);
+
+      // レイアウトボタンクリック
+      btnSingle.addEventListener('click', () => changeLayout('single'));
+      btnGrid.addEventListener('click', () => changeLayout('grid'));
+
+      function changeLayout(mode) {
+        localStorage.setItem('layout', mode);
+        applyLayout(mode);
+      }
+      
+
+      // タグフィルター初期状態
+      tagButtons.forEach(btn => btn.classList.remove('selected'));
+      document.querySelector('.all-btn').classList.add('selected');
+      cameraCards.forEach(card => card.style.display = 'block');
+
+      // タグクリックでフィルタまたは全表示
+      tagButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const isAll = btn.classList.contains('all-btn');
+          tagButtons.forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          if (isAll) {
+            cameraCards.forEach(card => card.style.display = 'block');
+          } else {
+            const tagId = btn.dataset.tagId;
+            cameraCards.forEach(card => {
+              const ids = card.dataset.tagIds.split(',').filter(x => x);
+              card.style.display = ids.includes(tagId) ? 'block' : 'none';
+            });
+          }
+        });
+      });
+
+      // IntersectionObserverで自動再生/停止
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          const card = entry.target;
+          const video = card.querySelector('video');
+          if (card.style.display === 'none') return;
+          if (entry.isIntersecting) play(video.dataset.src, video.id);
+          else stop(video.id);
+        });
+      }, { threshold: 0.5 });
+      cameraCards.forEach(card => observer.observe(card));
+
+          // ── ここからメニュー開閉統合処理 ──
+          const menuToggle = document.querySelector('.menu-toggle');
+      const menu       = document.getElementById('menu');
+      if (menuToggle && menu) {
+        // ハンバーガークリックで .show トグル
+        menuToggle.addEventListener('click', e => {
+          e.stopPropagation();
+          menu.classList.toggle('show');
+        });
+        // メニュー外クリックで閉じる
+        document.addEventListener('click', e => {
+          if (!menu.contains(e.target) && !menuToggle.contains(e.target)) {
+            menu.classList.remove('show');
+          }
+        });
+      }
+    });
+
+    // videoId → intervalId のマップ
+  const driftIntervals = new Map();
+
+  function play(url, videoId) {
+    const video = document.getElementById(videoId);
+    if (video.src && !video.paused) return;
+
+
+
+
+    if (Hls.isSupported()) {
+      const hls = new Hls();
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        video.style.display = 'block';
+
+      
+
+        video.play();
+
+      // 既存のインターバルがあればクリア
+      if (driftIntervals.has(videoId)) {
+        clearInterval(driftIntervals.get(videoId));
+      }
+
+      // 差分チェック開始（15秒ごと）
+      const intervalId = setInterval(() => {
+        if (video.paused) return;
+
+        // seekable を使う
+        const seekable = video.seekable;
+        if (!seekable.length) return;
+
+        const liveEnd = seekable.end(seekable.length - 1);
+        const diff = liveEnd - video.currentTime;
+        console.log(`[${videoId}] drift: ${diff.toFixed(1)}s`);
+        if (diff > 30) {
+          // ライブ末尾までシーク
+          video.currentTime = liveEnd;
+        }
+      }, 15000);
+
+      driftIntervals.set(videoId, intervalId);
+    });
+  }
+  else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    video.src = url;
+    video.style.display = 'block';
+    video.play();
+  }
+  else {
+    alert('このブラウザでは再生できません');
+  }
+}
+
+function stop(videoId) {
+  const video = document.getElementById(videoId);
+  if (!video.src) return;
+  video.pause();
+  video.removeAttribute('src');
+  video.load();
+  video.style.display = 'none';
+
+  // インターバルをクリア
+  if (driftIntervals.has(videoId)) {
+    clearInterval(driftIntervals.get(videoId));
+    driftIntervals.delete(videoId);
+  }
+}
+
+  </script>
+
+
+
+  <style>
+    .controls-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 1rem 0;
+}
+
+.tag-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.layout-switch {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* タグボタン */
+.tag-btn {
+  width: 12rem;
+  height: 2.5rem;
+  background: #fff;
+  border: 1px solid #e5e5ea;
+  border-radius: 12px;
+  color: #1d1d1f;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+  transition: background 0.3s;
+}
+
+.tag-btn:hover {
+  background: #cc7a00; /* ← 濃いオレンジに変更 */
+  color: #fff;
+}
+
+/* レイアウト切替ボタン */
+.layout-btn {
+  width: 2.5rem;
+  height: 2.5rem;
+  background: #fff;
+  border: 1px solid #e5e5ea;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.2rem;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+  transition: background 0.3s;
+}
+
+.layout-btn:hover {
+  background: #cc7a00; /* ← 濃いオレンジに変更 */
+  color: #fff;
+}
+
+/* 選択中 */
+button.selected {
+  background: #ff9f0a;  /* 通常オレンジ */
+  color: #1d1d1f;
+  border: none;
+}
+
+/* カメラグリッド */
+#camera-grid.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+#camera-grid.single {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+/* カメラカード */
+.camera-card {
+  background: #fff;
+  border: 1px solid #e5e5ea;
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+  text-align: center;
+  transition: transform 0.2s;
+}
+
+.camera-card:hover {
+  transform: translateY(-2px);
+}
+
+#camera-grid.three {
+  grid-template-columns: repeat(3, 1fr);
+}
+#camera-grid.four {
+  grid-template-columns: repeat(4, 1fr);
+}
+  </style>
+</body>
+</html>
+

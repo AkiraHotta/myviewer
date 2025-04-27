@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>MyViewerApp タグ管理</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    /* フォームコンテナ */
+    .controls > div {
+      display: flex !important;
+      align-items: center !important;
+      gap: 0.5rem !important;
+    }
+    #camera-select, #tag-select {
+      flex: 1 1 auto !important;
+      min-width: 0 !important;
+      width: auto !important;
+    }
+    #add-camera, #add-tag {
+      flex: 0 0 auto !important;
+    }
+
+    /* マスタータグ */
+    .master-tag {
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+
+    /* タグ一覧アイテム */
+    ul.tag-list {
+      list-style: none;
+      padding: 0;
+    }
+    /* タグ一覧セル背景と枠線をApple風に */
+    ul.tag-list li {
+      background: #fff;
+      border: 1px solid #e5e5ea;
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    }
+    .tag-info {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex: 1;
+    }
+    .tag-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    /* ボタンの横幅を揃える例 */
+    .tag-actions button {
+      width: 80px;
+    }
+    .controls {
+      display: flex;
+      flex-direction: column; /* 縦並び */
+      gap: 1rem;              /* 各行の間隔 */
+    }
+
+    .form-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    /* 入力欄、セレクトボックス、ボタンの高さ統一 */
+    .form-row input[type="text"],
+    .form-row select,
+    .form-row button {
+      height: 2.5rem;             /* 高さ統一 */
+      font-size: 1rem;            /* フォントサイズ統一 */
+      padding: 0 1rem;            /* パディングも均一に */
+      line-height: 1.5rem;        /* 文字の高さも揃える */
+      box-sizing: border-box;     /* ボーダー含めた高さ計算 */
+    }
+
+    /* マスタータグ（全てのカメラ）も同様に */
+    ul.master-tag li {
+      background: #fff;
+      border: 1px solid #e5e5ea;
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    }
+
+    /* タグバッジ */
+    #selected-cameras .camera-badge {
+      background: #ff9f0a;  /* オレンジ */
+      color: #1d1d1f;       /* 黒っぽいグレー */
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      font-size: 0.9rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    /* バッジの削除ボタン */
+    #selected-cameras .camera-badge .badge-delete-btn {
+      background: transparent;
+      border: none;
+      color: #1d1d1f;
+      margin-left: 0.5rem;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 1rem;
+      transition: color 0.3s;
+    }
+
+    /* ホバー時に白く */
+    #selected-cameras .camera-badge .badge-delete-btn:hover {
+      color: #fff;
+    }
+
+  </style>
+</head>
+<body>
+  {% include 'header.html' %}
+  <h1>タグ管理</h1>
+
+  <form id="tag-form" method="post" class="controls">
+
+    <input type="hidden" name="tag_id" id="tag-id-input">
+
+    <!-- 横並びエリア -->
+    <div class="form-row" style="display: flex; align-items: center; gap: 0.5rem;">
+      <input type="text" name="tag_name" id="tag-name-input" placeholder="タグ名" required>
+      <select id="camera-select">
+        <option value="">カメラを選択</option>
+        {% for camera in cameras %}
+          <option value="{{ camera.id }}">{{ camera.name }}</option>
+        {% endfor %}
+      </select>
+      <button type="button" id="add-camera">タグ追加</button>
+      <button type="submit">保存</button>
+    </div>
+  
+    <!-- バッジ表示エリア -->
+    <div id="selected-cameras" style="margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.5rem;"></div>
+  
+    <input type="hidden" name="camera_ids" id="camera-ids">
+  </form>
+
+  <!-- マスタータグ：編集・削除不可 -->
+  <ul class="master-tag">
+    <li>
+      <span class="tag-name">全てのカメラ</span>
+      (<span class="camera-names">
+        {% for camera in cameras %}{{ camera.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+      </span>)
+    </li>
+  </ul>
+
+  <!-- その他タグ一覧 -->
+  <ul class="tag-list">
+    {% for item in tag_data %}
+      <li data-id="{{ item.tag.id }}" data-camera-ids="{{ item.camera_ids|join(',') }}">
+        <div class="tag-info">
+          <span class="tag-name">{{ item.tag.tag_name }}</span>
+          (<span class="camera-names">
+            {% for camera in item.cameras %}{{ camera.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+          </span>)
+        </div>
+        <div class="tag-actions">
+          <button class="edit-btn" type="button">編集</button>
+          <button class="delete-btn" type="button" data-url="{{ url_for('delete_tag', tag_id=item.tag.id) }}">削除</button>
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // ハンバーガーアイコン
+      const menuToggle = document.querySelector('.menu-toggle');
+      const menu       = document.getElementById('menu');
+      menuToggle.addEventListener('click', () => menu.classList.toggle('show'));
+
+      // フォーム要素取得
+      const tagForm        = document.getElementById('tag-form');
+      const tagIdInput     = document.getElementById('tag-id-input');
+      const tagNameInput   = document.getElementById('tag-name-input');
+      const cameraSelect   = document.getElementById('camera-select');
+      const addCameraBtn   = document.getElementById('add-camera');
+      const selectedCamsEl = document.getElementById('selected-cameras');
+      const cameraIdsInput = document.getElementById('camera-ids');
+
+      // カメラ選択プルダウンの初期オプションを保存
+      const initialOptions = Array.from(cameraSelect.options).map(opt => opt.cloneNode(true));
+      let selectedIds = [];
+
+      // カメラ追加ボタン
+      addCameraBtn.addEventListener('click', () => {
+        const id   = cameraSelect.value;
+        const name = cameraSelect.options[cameraSelect.selectedIndex]?.text;
+        if (!id || selectedIds.includes(id)) return;
+        selectedIds.push(id);
+        cameraIdsInput.value = selectedIds.join(',');
+
+        // 選択バッジ作成
+        const span = document.createElement('span');
+        span.textContent = name;
+        span.classList.add('camera-badge');  // ← クラス追加
+
+        
+        const del = document.createElement('button');
+        del.textContent = '×';
+        del.classList.add('badge-delete-btn');  // ← クラス追加
+
+        
+        del.addEventListener('click', () => {
+          selectedCamsEl.removeChild(span);
+          selectedIds = selectedIds.filter(x => x !== id);
+          cameraIdsInput.value = selectedIds.join(',');
+          cameraSelect.appendChild(initialOptions.find(o => o.value === id).cloneNode(true));
+        });
+        span.appendChild(del);
+        selectedCamsEl.appendChild(span);
+        cameraSelect.removeChild(cameraSelect.options[cameraSelect.selectedIndex]);
+      });
+
+      // 編集ボタン
+      document.querySelector('.tag-list').addEventListener('click', e => {
+        console.log('クリック検知');  // ★ 追加
+
+        if (e.target.classList.contains('edit-btn')) {
+          console.log('編集ボタン押された');  // ★ 追加
+
+          const li      = e.target.closest('li');
+          const tagId   = li.dataset.id;
+          const tagName = li.querySelector('.tag-name').textContent;
+          const camIds  = li.dataset.cameraIds.split(',').filter(id => id);
+
+          console.log('取得したタグID:', tagId);   // ★ 追加
+          console.log('取得したタグ名:', tagName); // ★ 追加
+          console.log('取得したカメラID:', camIds); // ★ 追加
+
+          console.log("取得したカメラID:", camIds);  // ← 確認用
+
+          // フォームリセット
+          resetForm();
+          tagIdInput.value   = tagId;
+          tagNameInput.value = tagName;
+          cameraSelect.innerHTML = '';
+          initialOptions.forEach(o => cameraSelect.appendChild(o.cloneNode(true)));
+          camIds.forEach(id => { cameraSelect.value = id; addCameraBtn.click(); });
+          tagForm.querySelector('button[type="submit"]').textContent = '更新';
+          document.querySelectorAll('.edit-btn, .delete-btn').forEach(b => b.style.display = 'none');
+          if (!document.getElementById('cancel-btn')) {
+            const cancel = document.createElement('button');
+            cancel.type = 'button'; cancel.id = 'cancel-btn'; cancel.textContent = 'キャンセル';
+            cancel.style.marginLeft = '0.5rem'; cancel.addEventListener('click', resetForm);
+            tagForm.appendChild(cancel);
+          }
+        }
+      });
+
+      // 同名チェック & 更新
+      tagForm.addEventListener('submit', e => {
+        const tagId   = tagIdInput.value;
+        const newName = tagNameInput.value.trim();
+        const existing = Array.from(document.querySelectorAll('ul.tag-list li'))
+          .filter(li => !tagId || li.dataset.id !== tagId)
+          .map(li => li.querySelector('.tag-name').textContent);
+        if (existing.includes(newName)) {
+          e.preventDefault();
+          alert('同じ名前です');
+          return;
+        }
+        if (tagId) {
+          e.preventDefault();
+          fetch(`/update_tag/${tagId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tag_name: newName, camera_ids: selectedIds })
+          }).then(res => res.ok && location.reload());
+        }
+      });
+
+      // フォームリセット関数
+      function resetForm() {
+        tagIdInput.value       = '';
+        tagNameInput.value     = '';
+        selectedCamsEl.innerHTML = '';
+        selectedIds            = [];
+        cameraIdsInput.value   = '';
+        cameraSelect.innerHTML = '';
+        initialOptions.forEach(o => cameraSelect.appendChild(o.cloneNode(true)));
+        tagForm.querySelector('button[type="submit"]').textContent = '登録';
+        document.querySelectorAll('.edit-btn, .delete-btn').forEach(b => b.style.display = '');
+        const c = document.getElementById('cancel-btn'); if (c) c.remove();
+      }
+
+      // 削除ボタン
+      document.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', () => {
+        const url = btn.getAttribute('data-url');
+        if (!confirm('本当にこのタグを削除しますか？')) return;
+        window.location.href = url;
+      }));
+    });
+  </script>
+</body>
+</html>

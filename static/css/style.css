@@ -1,0 +1,375 @@
+body {
+  margin: 0;
+  padding: 2rem;
+  font-family: "Noto Sans JP", sans-serif;
+  background: #f5f5f7; /* Air系のライトグレー背景 */
+  color: #1d1d1f; /* Apple標準の濃いグレー */
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+/* ヘッダー */
+.site-header {
+  background: #012b46; /* 真っ白 */
+  color: #1d1d1f;
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e5e5ea; /* ごく薄いグレーライン */
+}
+
+.header-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.logo {
+  color: #e5e5ea;
+  text-decoration: none;
+  font-size: 1.4rem;
+  font-weight: bold;
+}
+
+/* メニューアイコン */
+.menu-toggle {
+  font-size: 1.8rem;
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: #ff9f0a; /* メニューアイコンもオレンジで統一 */
+}
+
+.menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 1.5rem;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  min-width: 160px;
+  z-index: 999;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* メニュー */
+.menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 1.5rem;
+  background: #ffffff;
+  border: 1px solid #e5e5ea;
+  border-radius: 12px;
+  min-width: 160px;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.05);
+}
+
+.menu a {
+  display: block;
+  color: #1d1d1f;
+  padding: 0.75rem 1rem;
+  text-decoration: none;
+}
+
+.menu a:hover {
+  background: #f2f2f7;
+}
+
+.menu.show {
+  display: block;
+}
+
+/* 見出し */
+h1 {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: #1d1d1f;
+  margin-top: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+/* フォーム */
+.controls input,
+.controls select {
+  padding: 0.6rem 1rem;
+  font-size: 1rem;
+  border-radius: 10px;
+  border: 1px solid #d1d1d6;
+  background: #fff;
+  color: #1d1d1f;
+}
+
+.controls button {
+  padding: 0.6rem 1.5rem;
+  border-radius: 20px;
+  background: #ff9f0a; /* 明るめオレンジ */
+  color: #1d1d1f;        /* Appleっぽい黒に近いグレー */
+  font-size: 1rem;
+  border: none;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+/* 共通ボタンスタイル（編集・削除・再生・停止 全ボタン） */
+button,
+.delete-btn {
+  background: #ff9f0a; 
+  color: #1d1d1f;
+  border: none;
+}
+
+button:hover,
+.delete-btn:hover {
+  background: #cc7a00;
+}
+
+.controls button:hover {
+  background: #005bb5;
+}
+/* 動画プレイヤー */
+video {
+  width: 100%;
+  max-width: 800px;
+  background: #000;
+  border-radius: 4px; /* 角丸は控えめ */
+  margin-top: 2rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* 影も薄く */
+}
+.camera-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+.camera-card {
+  background: #FFFAEE;
+  padding: 1rem;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.camera-card h2 {
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.camera-card button {
+  margin-right: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.camera-card video {
+  margin-top: 1rem;
+}
+
+/* カメラリスト（カメラ管理ページ） */
+ul {
+  list-style: none;
+  padding: 0;
+}
+
+/* リストカード */
+li {
+  background: #ffffff;
+  border: 1px solid #e5e5ea;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+}
+/* リストカード */
+li {
+  background: #ffffff;
+  border: 1px solid #e5e5ea;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+}
+
+
+/* 編集モードの入力欄 */
+li input[type="text"] {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid #bbb;
+  border-radius: 4px;
+  font-size: 1rem;
+  margin-right: 0.5rem;
+  width: 200px;
+}
+.controls select {
+  padding: 0.6rem 1rem;
+  font-size: 1rem;
+  border-radius: 4px;
+  border: 1px solid #bbb;
+  background-color: #fff;
+  color: #3B3D45;
+  font-family: "Noto Sans JP", sans-serif;
+  appearance: none; /* Safari/Chrome */
+  -webkit-appearance: none; /* iOS */
+  -moz-appearance: none; /* Firefox */
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%233B3D45' class='bi bi-chevron-down' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 5.646a.5.5 0 0 1 .708 0L8 11.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem;
+}
+.controls select[multiple] {
+  height: 150px;
+  min-width: 200px;
+}
+
+/* ── ヘッダーナビ レスポンシブ切り替え ── */
+/* モバイル：ハンバーガー表示 + メニュー非表示 */
+.site-header .menu-toggle {
+  display: block;
+}
+.site-header nav.menu {
+  display: none;
+}
+.site-header nav.menu.show {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── 常時ハンバーガーメニュー ── */
+
+/* ── ハンバーガーメニュー共通 ── */
+/* ① アイコンは常に表示 */
+.site-header .menu-toggle {
+  display: block !important;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.8rem;
+  cursor: pointer;
+  margin-left: auto;
+}
+
+/* ② メニューは常に hidden。.show で visible */
+.site-header nav.menu {
+  display: none !important;
+  position: absolute;
+  top: 100%;
+  right: 1.5rem;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  min-width: 160px;
+  z-index: 999;
+}
+
+/* ③ show クラスで開く */
+.site-header nav.menu.show {
+  display: flex !important;
+}
+
+/* ④ メニュー内リンク */
+.site-header nav.menu a,
+.site-header nav.menu span {
+  padding: 0.75rem 1rem;
+  color: #3B3D45;
+  text-decoration: none;
+}
+
+/* ⑤ ホバー */
+.site-header nav.menu a:hover {
+  background: #f2f2f2;
+}
+/* タグ追加／カメラ追加フォームのコンテナ */
+.controls > div {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 auto;    /* ← これを追加 */
+}
+
+/* セレクトをフレックスアイテム化し、最小幅0で収縮可能に */
+#camera-select,
+#tag-select {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;      /* 幅はコンテナに合わせて自動調整 */
+}
+
+/* ボタンは内容幅で */
+#add-camera,
+#add-tag {
+  flex: 0 0 auto;
+}
+/* アカウント管理フォーム内のDIVをタグ管理と同様にフレックスに */
+#account-form > div {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  flex: 1 1 auto !important;
+}
+
+/* プルダウンとボタン */
+#tag-select {
+  flex: 1 1 auto !important;
+  min-width: 0      !important;
+  width: auto       !important;
+}
+#add-tag {
+  flex: 0 0 auto    !important;
+}
+
+
+/* 登録フォームのボタン（共通化） */
+.controls button {
+  padding: 0.6rem 1.5rem;
+  border-radius: 20px;
+  background: #ff9f0a; /* 通常オレンジ */
+  color: #1d1d1f;
+  font-size: 1rem;
+  border: none;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.controls button:hover {
+  background: #cc7a00; /* 濃いオレンジ */
+  color: #fff;
+}
+
+/* 編集・削除・キャンセルボタンも統一 */
+.edit-btn, .delete-btn, .cancel-btn {
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  background: #ff9f0a;
+  color: #1d1d1f;
+  font-size: 0.9rem;
+  border: none;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+  cursor: pointer;
+  transition: background 0.3s;
+  margin-left: 0.5rem;
+}
+
+.edit-btn:hover, .delete-btn:hover, .cancel-btn:hover {
+  background: #cc7a00;
+  color: #fff;
+}
+
+/* 編集時の入力欄も調整 */
+li input[type="text"] {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid #d1d1d6;
+  border-radius: 10px;
+  font-size: 1rem;
+  width: 200px;
+  margin-right: 0.5rem;
+}

@@ -1,0 +1,9 @@
+{
+  // プロジェクト直下の仮想環境を指定
+  "python.defaultInterpreterPath": "${workspaceFolder}/venv/bin/python",
+
+  // Pylance が venv の site-packages を参照できるように追加
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/venv/lib/python3.13/site-packages"
+  ]
+}

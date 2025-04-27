@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>アカウント管理</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    /* ── フォーム全体を縦に並べる ── */
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    /* ── 各行は横並び ── */
+    .controls .form-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    /* ── アカウント／パスワード／権限 の幅調整 ── */
+    #username-input,
+    #password-input {
+      flex: 1 1 150px;   /* 最小150px、余白あれば伸びる */
+      max-width: 250px;  /* 最大250px くらいに制限 */
+    }
+    #role-select {
+      flex: 0 0 100px;   /* 固定幅 */
+    }
+    /* ── タグ選択行 ── */
+    #tag-select {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    #add-tag {
+      flex: 0 0 auto;
+    }
+    #account-list li {
+      display: flex;
+      justify-content: space-between; /* 左：ユーザー情報 / 右：ボタン */
+      align-items: center;             /* 縦方向中央揃え */
+      background: #fff;
+      border: 1px solid #e5e5ea;
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    }
+
+    #account-list .user-info {
+      flex: 1; /* 左側を広げる */
+    }
+
+    #account-list .actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    /* タグバッジ */
+#selected-tags span {
+  background: #ff9f0a;  /* 濃いオレンジ */
+  color: #1d1d1f;       /* Appleっぽい濃いグレー */
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  transition: background 0.3s;
+}
+
+/* 削除ボタン */
+#selected-tags span button {
+  background: transparent;
+  border: none;
+  color: #1d1d1f;
+  margin-left: 0.5rem;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1rem;
+  transition: color 0.3s;
+}
+
+/* ホバー時 */
+/*#selected-tags span:hover {
+/*  background: #cc7a00;  /* もっと濃いオレンジ */
+/*}
+*/
+
+#selected-tags span button:hover {
+  color: #fff;
+}
+  </style>
+</head>
+<body>
+  {% include 'header.html' %}
+  <h1>アカウント管理</h1>
+
+  <form id="account-form" class="controls" method="post">
+    <input type="hidden" name="user_id" id="user-id-input">
+
+    <!-- ① アカウント／パスワード／権限 -->
+    <div class="form-row">
+      <input type="text" name="username" id="username-input"
+             placeholder="アカウント名" required>
+      <input type="password" name="password" id="password-input"
+              placeholder="（変更する場合は入力）">
+      <select name="role" id="role-select" required>
+        <option value="">権限選択</option>  <!-- 追加 -->
+        <option value="1">管理者</option>
+        <option value="2">一般</option>
+      </select>
+    </div>
+
+    <!-- ② タグ選択行 -->
+    <div class="form-row">
+      <select id="tag-select">
+        <option value="">タグ選択</option>
+        {% for tag in tags %}
+          <option value="{{ tag.id }}">{{ tag.tag_name }}</option>
+        {% endfor %}
+      </select>
+      <button type="button" id="add-tag">タグ追加</button>
+    </div>
+
+    <!-- ③ 選択済みタグ -->
+    <div id="selected-tags" style="display:flex; flex-wrap:wrap; gap:0.5rem;"></div>
+    <input type="hidden" name="tag_ids" id="tag-ids">
+
+    <!-- 最後に登録ボタン -->
+    <button type="submit">登録</button>
+
+    <!-- ここに追加 -->
+<input type="hidden" id="existing-users" value="{% for u in users %}{{ u.username }}{% if not loop.last %},{% endif %}{% endfor %}">
+  </form>
+
+  <ul id="account-list">
+    {% for u in users if u.username != 'admin' %}
+    <li
+    data-id="{{ u.id }}"
+    data-role="{{ u.role }}"  
+    data-tag-ids="{{ user_tag_map[u.id]|join(',') }}" 
+  >
+      <div class="user-info">
+        <strong class="username">{{ u.username }}</strong>
+        （権限: {{ '管理者' if u.role==1 else '一般' }}）
+        タグ:
+        {% set uts = user_tag_map[u.id] %}
+        {% if uts %}
+          {% for tag in tags if tag.id in uts %}{{ tag.tag_name }}{% if not loop.last %}, {% endif %}{% endfor %}
+        {% else %}
+          <em>未設定</em>
+        {% endif %}
+      </div>
+      <div class="actions">
+        <button class="edit-btn" type="button">編集</button>
+        <button class="delete-btn" type="button"
+                data-url="{{ url_for('delete_user', user_id=u.id) }}">
+          削除
+        </button>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const menuToggle = document.querySelector('.menu-toggle');
+    const menu       = document.getElementById('menu');
+    if (menuToggle && menu) menuToggle.addEventListener('click', () => menu.classList.toggle('show'));
+
+    const form           = document.getElementById('account-form');
+    const userIdInput    = document.getElementById('user-id-input');
+    const usernameInput  = document.getElementById('username-input');
+    const passwordInput  = document.getElementById('password-input');
+    const roleSelect     = document.getElementById('role-select');
+    const tagSelect      = document.getElementById('tag-select');
+    const addTagBtn      = document.getElementById('add-tag');
+    const selectedTagsEl = document.getElementById('selected-tags');
+    const tagIdsInput    = document.getElementById('tag-ids');
+
+    // プルダウン幅 3×
+    const w = tagSelect.offsetWidth;
+    tagSelect.style.width = (w * 3) + 'px';
+
+    const opts = Array.from(tagSelect.options).map(o => o.cloneNode(true));
+    let selectedIds = [];
+
+    addTagBtn.addEventListener('click', () => {
+      const id = tagSelect.value;
+      if (!id || selectedIds.includes(id)) return;
+      const name = tagSelect.options[tagSelect.selectedIndex].text;
+      selectedIds.push(id);
+      tagIdsInput.value = selectedIds.join(',');
+
+      const badge = document.createElement('span');
+      badge.classList.add('badge');  // ← クラスを追加
+      badge.textContent = name;
+
+      
+      const btn = document.createElement('button');
+      btn.textContent = '×';
+      
+      btn.addEventListener('click', () => {
+        selectedIds = selectedIds.filter(x=>x!==id);
+        tagIdsInput.value = selectedIds.join(',');
+        selectedTagsEl.removeChild(badge);
+        const opt = opts.find(o=>o.value===id).cloneNode(true);
+        tagSelect.appendChild(opt);
+      });
+      badge.appendChild(btn);
+      selectedTagsEl.appendChild(badge);
+      tagSelect.removeChild(tagSelect.options[tagSelect.selectedIndex]);
+    });
+
+    // 編集
+    document.querySelectorAll('.edit-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const li   = btn.closest('li');
+        const uid  = li.dataset.id;
+        const uname= li.querySelector('.username').textContent;
+        const urole= li.dataset.role;
+        const utags= li.dataset.tagIds ? li.dataset.tagIds.split(',') : [];
+
+        // リセット
+        reset();
+
+        userIdInput.value   = uid;
+        usernameInput.value = uname;
+        passwordInput.value = '';            // ←常に空
+        roleSelect.value    = urole;
+
+        passwordInput.required = false;      // ← ここを追加！
+
+        // タグ復元
+        tagSelect.innerHTML = '';
+        opts.forEach(o=>tagSelect.appendChild(o.cloneNode(true)));
+        utags.forEach(id=> { tagSelect.value=id; addTagBtn.click(); });
+
+        form.querySelector('button[type="submit"]').textContent = '更新';
+        document.querySelectorAll('.edit-btn, .delete-btn').forEach(x=>x.style.display='none');
+
+        if (!document.getElementById('cancel-btn')) {
+          const c = document.createElement('button');
+          c.type = 'button'; c.id = 'cancel-btn';
+          c.textContent = 'キャンセル'; c.style.marginLeft='0.5rem';
+          c.addEventListener('click', reset);
+          form.appendChild(c);
+        }
+      });
+    });
+
+    // 送信
+    form.addEventListener('submit', e => {
+  const roleValue = roleSelect.value;
+  const username  = usernameInput.value.trim();
+  const existing  = document.getElementById('existing-users').value.split(',');
+
+  // 権限が未選択ならブロック
+  if (!roleValue) {
+    e.preventDefault();
+    alert('権限を選択してください');
+    return;
+  }
+
+  // 新規登録時のアカウント名重複チェック
+  if (!userIdInput.value && existing.includes(username)) {
+    e.preventDefault();
+    alert('このアカウント名は既に存在します');
+    return;
+  }
+
+  // 編集時の処理
+  if (userIdInput.value) {
+    e.preventDefault();
+    console.log('編集モード: fetch送信');  // ← ここ追加して、送信前に確認！
+
+    const payload = {
+      username: username,
+      password: passwordInput.value,
+      role:     parseInt(roleValue),
+      tag_ids:  selectedIds
+    };
+    fetch(`/update_user/${userIdInput.value}`, {
+  method:'POST',
+  headers:{'Content-Type':'application/json'},
+  body:JSON.stringify(payload)
+}).then(r => {
+  console.log('fetch status:', r.status);  // ← ステータス確認
+
+  if (r.status === 409) {
+    alert('このアカウント名は既に存在します');
+  } else if (r.ok) {
+    console.log('更新成功');  // ← 成功ログ
+    // 編集画面をリセット（登録モードに戻す）
+    reset();
+    
+    location.reload(); 
+  } else {
+    alert('更新失敗');
+  }
+});
+  }
+  // 新規登録は通常POST
+});
+
+    function reset() {
+      userIdInput.value='';
+      form.reset();
+      selectedTagsEl.innerHTML='';
+      selectedIds=[];
+      tagIdsInput.value='';
+      tagSelect.innerHTML='';
+      opts.forEach(o=>tagSelect.appendChild(o.cloneNode(true)));
+      form.querySelector('button[type="submit"]').textContent='登録';
+      document.querySelectorAll('.edit-btn, .delete-btn').forEach(x=>x.style.display='');
+      const c=document.getElementById('cancel-btn'); if(c) c.remove();
+
+      passwordInput.required = true;  // ← 追加
+    }
+
+    // 削除ボタン動作追加
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const url = btn.getAttribute('data-url');
+        if (!confirm('本当に削除しますか？')) return;
+        window.location.href = url;
+      });
+    });
+  });
+  </script>
+</body>
+</html>

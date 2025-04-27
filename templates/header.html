@@ -1,0 +1,84 @@
+<header class="site-header">
+  <div class="header-inner">
+    <!-- ロゴ -->
+    <a href="/" class="logo">MY AI Viewer</a>
+
+    <!-- アカウント名＋ハンバーガーメニューをまとめて右寄せ -->
+    <div class="user-menu">
+      {% if session.username %}
+        <span class="user-name">{{ session.username }} さん</span>
+      {% endif %}
+      <!-- ハンバーガーアイコン（常に表示） -->
+      <button class="menu-toggle" aria-label="メニュー開閉">☰</button>
+
+      <!-- ドロップダウンメニュー -->
+      <nav id="menu" class="menu">
+        <a href="{{ url_for('index') }}">ホーム</a>
+        <a href="{{ url_for('camera') }}">カメラ管理</a>
+        <a href="{{ url_for('tag') }}">タグ管理</a>
+        <a href="{{ url_for('account') }}">アカウント管理</a>
+        <a href="{{ url_for('logout') }}">ログアウト</a>
+      </nav>
+    </div>
+  </div>
+</header>
+<!-- インラインスタイル：必要に応じて static/css/style.css に移動 -->
+<style>
+  /* ヘッダー内の配置 */
+  .header-inner {
+    display: flex;
+    align-items: center;
+  }
+  /* ロゴは左端 */
+  .logo {
+    margin-right: 0;
+  }
+  /* user-menu を右寄せ */
+  .user-menu {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    position: relative;
+    gap: 0.5rem;
+  }
+  /* メニュー開閉ボタン */
+  .menu-toggle {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 1.8rem;
+    cursor: pointer;
+  }
+  /* ドロップダウンメニュー */
+  .user-menu .menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    flex-direction: column;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    z-index: 999;
+    min-width: 160px;
+  }
+  /* メニュー表示 */
+  .user-menu .menu.show {
+    display: flex;
+  }
+  /* メニュー内リンク */
+  .user-menu .menu a {
+    padding: 0.75rem 1rem;
+    color: #3B3D45;
+    text-decoration: none;
+  }
+  .user-menu .menu a:hover {
+    background: #f2f2f2;
+  }
+  /* アカウント名テキスト */
+  .user-name {
+    color: #fff;
+    font-size: 1rem;
+  }
+</style>
