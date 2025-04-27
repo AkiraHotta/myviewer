@@ -157,11 +157,11 @@ const observer = new IntersectionObserver((entries) => {
 
     if (Hls.isSupported()) {
   const hls = new Hls();
-  const to = setTimeout(() => {          // ★10 秒で諦める
+  const to = setTimeout(() => {          // ★3 秒で諦める
     console.warn(`[${videoId}] timeout`);
     hls.destroy();
     currentPlaying = null;               // 再生ロック解除
-  }, 10000);
+  }, 3000);
 
   hls.loadSource(url);
   hls.attachMedia(video);
@@ -209,25 +209,18 @@ function stop(videoId) {
 
 <script src="https://unpkg.com/pulltorefreshjs"></script>
 <script>
-PullToRefresh.init({
-  mainElement:'body',
-  distThreshold:60,
-  distMax:80,
-  distReload:70,
-  instructionsPullToRefresh:'引っ張って更新',
-  instructionsReleaseToRefresh:'離して更新',
-  instructionsRefreshing:'更新中...',
-  onRefresh(){ location.reload(); },
-
-  /* ← 追加ここから */
-  onPullEnd(){
-    // 1 秒後に透明カバーを強制除去
-    setTimeout(()=>{
-      document.querySelectorAll('.ptr--ptr, .ptr--box').forEach(el=>el.remove());
-    },1000);
-  }
-  /* ← 追加ここまで */
-});
+  PullToRefresh.init({
+    mainElement: 'body',          // ここでリロード範囲指定
+    distThreshold: 60,            // 何px引っ張ったら発動するか
+    distMax: 80,                  // 引っ張れる最大距離
+    distReload: 70,               // グルグルが表示される距離
+    instructionsPullToRefresh: '引っ張って更新',   // 表示メッセージ
+    instructionsReleaseToRefresh: '離して更新',
+    instructionsRefreshing: '更新中...',
+    onRefresh() {
+      location.reload();
+    }
+  });
 </script>
 
 
@@ -350,12 +343,6 @@ button.selected {
   text-align: center;
   padding: 10px;
 }
-
-body{
-    overflow-y:auto;                /* 縦スクロールを許可            */
-    -webkit-overflow-scrolling:touch; /* iOS で慣性スクロールを有効化 */
-  }
   </style>
 </body>
-
 </html>

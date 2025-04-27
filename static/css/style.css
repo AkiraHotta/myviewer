@@ -444,3 +444,8 @@ li input[type="text"] {
   }
 
 }
+/* === ここを追加 === */
+body{
+  overflow-y:auto;                /* 縦スクロールを許可            */
+  -webkit-overflow-scrolling:touch; /* iOS で慣性スクロールを有効化 */
+}
