@@ -271,38 +271,54 @@ def update_user(user_id):
     return '', 204
 
 
-# --- 初期データ作成 ---
-@app.before_first_request
-def setup_database():
+# =============================================================================
+# ↓ ここから「起動直後に一度だけ」初期データを作る部分です ↓
+# =============================================================================
+
+def initialize_db():
+    """
+    テーブル作成と admin + 全てのカメラタグ、admin-タグ紐付けを行う
+    """
     db.create_all()
 
+    # adminユーザー
     admin = User.query.filter_by(username='admin').first()
     if not admin:
-        admin = User(username='admin',
-                     password=generate_password_hash('1213'),
-                     role=1)
+        admin = User(
+            username='admin',
+            password=generate_password_hash('1213'),
+            role=1
+        )
         db.session.add(admin)
         db.session.commit()
 
+    # 全てのカメラタグ
     all_tag = Tag.query.filter_by(tag_name='全てのカメラ').first()
     if not all_tag:
         all_tag = Tag(tag_name='全てのカメラ')
         db.session.add(all_tag)
         db.session.commit()
 
+    # admin に全てのカメラタグを付与
     if not TagUser.query.filter_by(user_id=admin.id, tag_id=all_tag.id).first():
+        # 既存の admin-タグを消してから追加
         TagUser.query.filter_by(user_id=admin.id).delete()
         db.session.add(TagUser(user_id=admin.id, tag_id=all_tag.id))
         db.session.commit()
 
+    # 既存の Camera があれば、全てのカメラタグに紐づけ
     for cam in Camera.query.all():
         if not TagCamera.query.filter_by(tag_id=all_tag.id, camera_id=cam.id).first():
             db.session.add(TagCamera(tag_id=all_tag.id, camera_id=cam.id))
     db.session.commit()
 
+# --- アプリ起動 ---
 if __name__ == '__main__':
+    # アプリコンテキストを作ってから初期化処理を呼び出し
+    with app.app_context():
+        initialize_db()
+
+    # 本番もローカルもこの１行で起動
     app.run(host='0.0.0.0', port=8000)
-
-
 
     
