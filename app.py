@@ -2,8 +2,10 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
+from dotenv import load_dotenv
 import os
 
+load_dotenv()  # ← ここで.env読み込み
 
 app = Flask(__name__)
 app.secret_key = 'CHANGE_THIS_TO_A_SECRET_KEY'
