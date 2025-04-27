@@ -1,20 +1,18 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MyViewerAppカメラ管理</title>
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-  <meta name="theme-color" content="#007bff">
- 
-</head>
-<body>
-    {% include 'header.html' %}
-    {% extends "base.html" %}
+{# templates/camera.html #}
+{% extends "base.html" %}
 
-    <h1>カメラ管理</h1>
+{% block title %}カメラ管理 | MyViewerApp{% endblock %}
+
+{% block extra_head %}
+  {# HLS.js を使うならここで読み込む #}
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+{% endblock %}
+
+{% block content %}
+  {# 必要なら header.html を読み込む（base.html 側で共通読み込み済みなら不要） #}
+  {% include 'header.html' %}
+
+  <h1>カメラ管理</h1>
     
     <form method="post" class="controls">
       <input type="text" name="camera_name" placeholder="カメラ名" required>

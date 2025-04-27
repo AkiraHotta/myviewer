@@ -1,19 +1,13 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MyViewerApp</title>
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-  <meta name="theme-color" content="#007bff">
-</head>
-<body>
-  {% include 'header.html' %}
-  {% extends "base.html" %}
+{% extends "base.html" %}
 
-  <!-- タグフィルターとレイアウト切替アイコン -->
+{% block title %}MyViewerApp | カメラビュー{% endblock %}
+
+{% block extra_head %}
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+{% endblock %}
+
+{% block content %}
+  <!-- タグフィルター＆レイアウト切替バー -->
   <div id="controls" class="controls-bar">
     <div id="tag-filters" class="tag-filter">
       <button class="tag-btn all-btn" data-tag-id="">全表示</button>
@@ -23,9 +17,9 @@
     </div>
     <div id="layout-switch" class="layout-switch">
       <button id="btn-single" class="layout-btn" title="縦1列表示">■<br>■</button>
-      <button id="btn-grid" class="layout-btn" title="横2列表示">■■</button>
-      <button id="btn-3col" class="layout-btn" title="横3列表示">■x3</button>
-      <button id="btn-4col" class="layout-btn" title="横4列表示">■x4</button>
+      <button id="btn-grid"   class="layout-btn" title="横2列表示">■■</button>
+      <button id="btn-3col"   class="layout-btn" title="横3列表示">■x3</button>
+      <button id="btn-4col"   class="layout-btn" title="横4列表示">■x4</button>
     </div>
   </div>
 

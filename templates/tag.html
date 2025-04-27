@@ -1,12 +1,11 @@
-<!DOCTYPE html>
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MyViewerApp タグ管理</title>
+{# templates/tag.html #}
+{% extends "base.html" %}
+
+{% block title %}タグ管理 | MyViewerApp{% endblock %}
+
+{% block extra_head %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <link rel="manifest"    href="{{ url_for('static', filename='manifest.json') }}">
   <meta name="theme-color" content="#007bff">
   <style>
     /* フォームコンテナ */
@@ -183,10 +182,11 @@
 }
 
   </style>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
   {% include 'header.html' %}
-  {% extends "base.html" %}
+
   <h1>タグ管理</h1>
 
   <form id="tag-form" method="post" class="controls">
