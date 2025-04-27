@@ -214,10 +214,13 @@ function stop(videoId) {
 <script src="https://unpkg.com/pulltorefreshjs"></script>
 <script>
   PullToRefresh.init({
-    mainElement: 'body',
-    distThreshold: 60,         // 60pxで発動（デフォルト150）
-    distMax: 80,               // 引っ張れる最大距離
-    distReload: 70,            // グルグル表示する距離
+    mainElement: 'body',          // ここでリロード範囲指定
+    distThreshold: 60,            // 何px引っ張ったら発動するか
+    distMax: 80,                  // 引っ張れる最大距離
+    distReload: 70,               // グルグルが表示される距離
+    instructionsPullToRefresh: '引っ張って更新',   // 表示メッセージ
+    instructionsReleaseToRefresh: '離して更新',
+    instructionsRefreshing: '更新中...',
     onRefresh() {
       location.reload();
     }
@@ -340,7 +343,9 @@ button.selected {
 }
 .ptr--ptr {
   font-size: 16px;
-  color: #5C6BC0;
+  color: #feffff;        /* 好きな色 */
+  text-align: center;
+  padding: 10px;
 }
   </style>
 </body>
