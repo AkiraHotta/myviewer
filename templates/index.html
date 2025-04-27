@@ -215,6 +215,9 @@ function stop(videoId) {
 <script>
   PullToRefresh.init({
     mainElement: 'body',
+    distThreshold: 60,         // 60pxで発動（デフォルト150）
+    distMax: 80,               // 引っ張れる最大距離
+    distReload: 70,            // グルグル表示する距離
     onRefresh() {
       location.reload();
     }
@@ -334,6 +337,10 @@ button.selected {
     padding-left: 10px;  /* 左右に余白 */
     padding-right: 10px;
   }
+}
+.ptr--ptr {
+  font-size: 16px;
+  color: #5C6BC0;
 }
   </style>
 </body>
