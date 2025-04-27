@@ -288,5 +288,6 @@ if __name__ == '__main__':
             if not TagCamera.query.filter_by(tag_id=all_tag.id, camera_id=cam.id).first():
                 db.session.add(TagCamera(tag_id=all_tag.id, camera_id=cam.id))
         db.session.commit()
+        
 
     app.run(host='0.0.0.0', port=8000)
