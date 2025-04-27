@@ -113,7 +113,7 @@
           if (entry.isIntersecting) play(video.dataset.src, video.id);
           else stop(video.id);
         });
-      }, { threshold: 0.5 });
+      }, { threshold: 0.1 });
       cameraCards.forEach(card => observer.observe(card));
 
           // ── ここからメニュー開閉統合処理 ──
