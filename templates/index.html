@@ -157,11 +157,11 @@ const observer = new IntersectionObserver((entries) => {
 
     if (Hls.isSupported()) {
   const hls = new Hls();
-  const to = setTimeout(() => {          // ★3 秒で諦める
+  const to = setTimeout(() => {          // ★10 秒で諦める
     console.warn(`[${videoId}] timeout`);
     hls.destroy();
     currentPlaying = null;               // 再生ロック解除
-  }, 3000);
+  }, 10000);
 
   hls.loadSource(url);
   hls.attachMedia(video);
