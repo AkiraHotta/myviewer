@@ -8,7 +8,10 @@ import os
 load_dotenv()  # ← ここで.env読み込み
 
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY')
+
+
+app.secret_key = 'CHANGE_THIS_TO_A_SECRET_KEY'
+# app.secret_key = os.getenv('SECRET_KEY')
 
 
 # --- データベース設定 ---
