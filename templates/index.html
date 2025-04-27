@@ -6,6 +6,9 @@
   <title>MyViewerApp</title>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <meta name="theme-color" content="#5C6BC0">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon.png') }}">
 </head>
 <body>
   {% include 'header.html' %}
@@ -110,7 +113,7 @@
           if (entry.isIntersecting) play(video.dataset.src, video.id);
           else stop(video.id);
         });
-      }, { threshold: 0.5 });
+      }, { threshold: 0.1 });
       cameraCards.forEach(card => observer.observe(card));
 
           // ── ここからメニュー開閉統合処理 ──
@@ -304,6 +307,13 @@ button.selected {
 }
 #camera-grid.four {
   grid-template-columns: repeat(4, 1fr);
+}
+@media (max-width: 768px) {
+  /* スマホ表示で 3列、4列ボタンを非表示 */
+  #btn-3col,
+  #btn-4col {
+    display: none;
+  }
 }
   </style>
 </body>
