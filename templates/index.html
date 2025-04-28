@@ -317,17 +317,17 @@ button.selected {
 #camera-grid.four {
   grid-template-columns: repeat(4, 1fr);
 }
+/* ── スマホ用 (幅 768px 以下) ── */
 @media (max-width: 768px) {
-  /* スマホ表示で 3列、4列ボタンを非表示 */
+  /* 3列・4列ボタンは非表示のまま */
   #btn-3col,
   #btn-4col {
     display: none;
   }
 
-
-    video {
-    padding-left: 10px;  /* 左右に余白 */
-    padding-right: 10px;
+  /* ★ 余白を完全に削除 ★ */
+  .camera-card video {
+    padding: 0;               /* ← 左右 0 にするだけで OK */
   }
 }
 /* ===== 方法B : aspect-ratio 版 ===== */
