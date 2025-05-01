@@ -583,17 +583,7 @@ def initialize_db():
 
     # ── ★ここから追加：デフォルトカメラのシード──（⭐︎テスト環境追加）
 
-    # ── デフォルト境界線を一括シード ─────────────────
-    for cam in Camera.query.all():
-        if not CameraLine.query.get(cam.id):
-            cl = CameraLine(
-                camera_id=cam.id,
-                x1=0.0, y1=0.5,
-                x2=1.0, y2=0.5,
-                in_side='A'
-            )
-            db.session.add(cl)
-    db.session.commit()
+    #
 
 
     default_cameras = [
@@ -614,7 +604,17 @@ def initialize_db():
                 db.session.add(TagCamera(tag_id=all_tag.id, camera_id=cam.id))
                 db.session.commit()
 
-
+    #── デフォルト境界線を一括シード ─────────────────
+    for cam in Camera.query.all():
+            if not CameraLine.query.get(cam.id):
+                cl = CameraLine(
+                    camera_id=cam.id,
+                    x1=0.0, y1=0.5,
+                    x2=1.0, y2=0.5,
+                    in_side='A'
+                )
+                db.session.add(cl)
+    db.session.commit()
 
                 
     # ── ★ここまで追加────────────────────────
