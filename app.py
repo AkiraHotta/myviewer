@@ -4,10 +4,39 @@ from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 import os
+from datetime import datetime
+from sqlalchemy import func, case
+import datetime
+from flask import jsonify
+import time, json
+from flask import Response, stream_with_context
+import threading
+import threading
+from threading import Lock
+from dotenv import load_dotenv
+
+
 
 load_dotenv()  # ← ここで.env読み込み
 
+YOLO_MODEL_TYPE = os.getenv("YOLO_MODEL_TYPE", "yolov8n") 
+
 app = Flask(__name__)
+
+app.config["YOLO_MODEL_TYPE"] = YOLO_MODEL_TYPE
+
+# ── ここから追加 ──────────────────────────────
+# 現在追跡中のカメラIDを管理するセット（スレッドセーフにするためLock付き）
+current_tracked_set = set()
+tracked_set_lock = Lock()
+# ── ここまで追加 ──────────────────────────────
+# ── ここから追加 ──────────────────────────────
+# メモリ上に最新のラインパラメータを保持する dict
+# key: camera_id, value: (x1, y1, x2, y2, in_side)
+current_line_params = {}
+# 各カメラのストリーム接続正常かを記録する dict (True=OK, False=異常)
+stream_ok = {}
+# ── ここまで追加 ──────────────────────────────
 
 
 app.secret_key = 'CHANGE_THIS_TO_A_SECRET_KEY'
@@ -25,12 +54,12 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# --- モデル定義 ---
+# --- モデル定義（この 1 回だけにする） ---
 class Camera(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
     stream_url = db.Column(db.String(200), nullable=False)
-
+    enabled    = db.Column(db.Boolean, nullable=False, default=True)
 class Tag(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     tag_name = db.Column(db.String(50), nullable=False)
@@ -50,6 +79,28 @@ class TagUser(db.Model):
     id      = db.Column(db.Integer, primary_key=True)
     tag_id  = db.Column(db.Integer, db.ForeignKey('tag.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+class CameraLine(db.Model):
+    # camera_id を主キーにして 1 対 1
+    camera_id = db.Column(db.Integer, db.ForeignKey('camera.id'), primary_key=True)
+    x1        = db.Column(db.Float,   nullable=False)  # 0.0–1.0 正規化済み
+    y1        = db.Column(db.Float,   nullable=False)
+    x2        = db.Column(db.Float,   nullable=False)
+    y2        = db.Column(db.Float,   nullable=False)
+    in_side   = db.Column(db.String(1), nullable=False) # 'A' or 'B'
+
+class VisitorEvent(db.Model):                # ★ 追加したいのはこれだけ
+    id         = db.Column(db.Integer, primary_key=True)
+    camera_id  = db.Column(db.Integer, db.ForeignKey('camera.id'), nullable=False)
+    direction  = db.Column(db.String(3), nullable=False)   # 'in' / 'out'
+    date       = db.Column(db.Date,  nullable=False)
+    time       = db.Column(db.Time,  nullable=False)
+
+    __table_args__ = (
+        db.Index('idx_event_cam_date', 'camera_id', 'date'),
+    )
+
+
 
 # --- ログイン必須デコレータ ---
 def login_required(fn):
@@ -274,6 +325,229 @@ def update_user(user_id):
         print(f"=== ユーザー {u.username} を更新しました ===")  # ← 更新確認
     return '', 204
 
+@app.route('/traffic')
+@login_required
+def traffic():
+    today = datetime.date.today()    # 今日 1 日分の集計
+    subq = (db.session.query(
+                VisitorEvent.camera_id,
+                func.sum(case(
+                    (VisitorEvent.direction=='in',  1),
+                    (VisitorEvent.direction=='out',-1),
+                    else_=0)).label('stay'),
+                func.sum(case(
+                    (VisitorEvent.direction=='in',1),
+                    else_=0)).label('total_in'))
+            .filter(VisitorEvent.date == today)
+            .group_by(VisitorEvent.camera_id)
+            .subquery())
+
+    rows = (db.session.query(Camera,
+                             subq.c.total_in,
+                             subq.c.stay)
+            .outerjoin(subq, Camera.id == subq.c.camera_id)
+            .all())
+
+    data = []
+    for cam, total_in, stay in rows:
+        total_in = total_in or 0
+        stay     = stay or 0
+
+        # ← ここで退場者数を計算
+        total_out = total_in - stay
+
+        status   = '空き' if stay<=0 else ('通常' if stay<=30 else '混雑')
+        data.append({
+            'camera':    cam,
+            'total_in':  total_in,
+            'total_out': total_out,   # ← ここを追加
+            'stay':      stay,
+            'status':    status
+        })
+    return render_template('traffic.html', data=data)
+
+# ← ここから下に追加 ─────────────────────────────
+
+@app.route('/set_line/<int:camera_id>', methods=['POST'])
+@login_required
+def set_line(camera_id):
+    data = request.get_json()
+    cl = CameraLine.query.get(camera_id)
+    if not cl:
+        cl = CameraLine(
+            camera_id = camera_id,
+            x1         = data['x1'],
+            y1         = data['y1'],
+            x2         = data['x2'],
+            y2         = data['y2'],
+            in_side    = data['in_side']
+        )
+        db.session.add(cl)
+    else:
+        cl.x1      = data['x1']
+        cl.y1      = data['y1']
+        cl.x2      = data['x2']
+        cl.y2      = data['y2']
+        cl.in_side = data['in_side']
+    db.session.commit()
+     # ── ここから追加 ─────────────────────────
+    # メモリキャッシュを更新
+    current_line_params[camera_id] = (
+        float(data['x1']), float(data['y1']),
+        float(data['x2']), float(data['y2']),
+        data['in_side']
+    )
+    # ── ここまで追加 ─────────────────────────
+    return '', 204
+
+@app.route('/clear_line/<int:camera_id>', methods=['POST'])
+@login_required
+def clear_line(camera_id):
+    CameraLine.query.filter_by(camera_id=camera_id).delete()
+    db.session.commit()
+
+    # ── ここから追加 ─────────────────────────
+    # メモリキャッシュから削除
+    current_line_params.pop(camera_id, None)
+    # ── ここまで追加 ─────────────────────────
+    return '', 204
+
+# 既存の set_line / clear_line のすぐ下に追加してください
+@app.route('/get_line/<int:camera_id>', methods=['GET'])
+@login_required
+def get_line(camera_id):
+    cl = CameraLine.query.get(camera_id)
+    if not cl:
+        return jsonify({}), 404
+    # 正規化済み座標をそのまま返す
+    return jsonify({
+        'x1':      cl.x1,
+        'y1':      cl.y1,
+        'x2':      cl.x2,
+        'y2':      cl.y2,
+        'in_side': cl.in_side
+    }), 200
+
+@app.route('/stream_counts/<int:camera_id>')
+@login_required
+def stream_counts(camera_id):
+    # ① last_positions はループ外で一度だけインポート
+    from people_counter import last_positions
+
+    @stream_with_context
+    def generate():
+        while True:
+            today = datetime.date.today()
+
+            # ② カウントは必ず取得
+            in_count = VisitorEvent.query.filter_by(
+                camera_id=camera_id,
+                direction='in',
+                date=today
+            ).count() or 0
+            out_count = VisitorEvent.query.filter_by(
+                camera_id=camera_id,
+                direction='out',
+                date=today
+            ).count() or 0
+
+            # ③ last_positions[camera_id] はリストなので、.items() ではなく for で回す
+            pts = []
+            try:
+                for p in last_positions.get(camera_id, []):
+                    pts.append({
+                        'id':     p['id'],
+                        'x':      p['x'],
+                        'y':      p['y'],
+                        'status': p.get('status')   # 'in' / 'out' / None
+                    })
+            except Exception as e:
+                # もし何かおかしくても、in/out は必ず送る
+                pts = []
+
+            # ④ 最終的に in/out と pts を一緒に送信
+            payload = {'in': in_count, 'out': out_count, 'pts': pts}
+            yield f"data: {json.dumps(payload)}\n\n"
+
+            time.sleep(1)
+
+    return Response(generate(), mimetype='text/event-stream')
+
+@app.route('/stream_table')
+@login_required
+def stream_table():
+    def generate():
+        while True:
+            today = datetime.date.today()
+
+            # 各カメラの in/out/stay/status を集計
+            rows = db.session.query(
+                Camera.id,
+                func.sum(
+       case(
+           (VisitorEvent.direction == 'in', 1),
+           else_=0
+       )
+   ).label('total_in'),
+   func.sum(
+       case(
+           (VisitorEvent.direction == 'out', 1),
+           else_=0
+       )
+   ).label('total_out')
+            ).outerjoin(VisitorEvent, 
+                (VisitorEvent.camera_id==Camera.id)&(VisitorEvent.date==today)
+            ).group_by(Camera.id).all()
+
+            data = []
+            for cam_id, total_in, total_out in rows:
+                total_in  = total_in  or 0
+                total_out = total_out or 0
+                stay      = total_in - total_out
+                status    = '空き' if stay<=0 else ('通常' if stay<=30 else '混雑')
+                
+                from app import stream_ok
+                data.append({
+                    'id':         cam_id,
+                    'total_in':   total_in,
+                    'total_out':  total_out,
+                    'stay':       stay,
+                    'status':     status,
+                    'stream_ok':  bool(stream_ok.get(cam_id, False))
+                })
+
+            yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+            time.sleep(1)
+
+    return Response(stream_with_context(generate()),
+                    mimetype='text/event-stream')
+
+
+
+@app.route('/update_tracked', methods=['POST'])
+@login_required
+def update_tracked():
+    # POSTで送られたカメラIDリストを取得
+    ids = set(map(int, request.form.getlist('tracked_cameras')))
+    # DB更新
+    for cam in Camera.query.all():
+        cam.enabled    = (cam.id in ids)
+    db.session.commit()
+    # グローバルセットも同期
+    with tracked_set_lock:
+        current_tracked_set.clear()
+        current_tracked_set.update(ids)
+    return redirect(url_for('traffic'))
+
+@app.before_request
+def _start_counters_on_request():
+    start_counters()
+
+
+
+
+# ── initialize_db() 以下はそのまま ─────────────────
+
 
 # =============================================================================
 # ↓ ここから「起動時に一度だけ」実行される初期化処理です ↓
@@ -310,15 +584,54 @@ def initialize_db():
         if not TagCamera.query.filter_by(tag_id=all_tag.id, camera_id=cam.id).first():
             db.session.add(TagCamera(tag_id=all_tag.id, camera_id=cam.id))
     db.session.commit()
+# ── ↑ ここまで initialize_db() ──────────────────
 
-# モジュール読み込み時（＝Gunicorn起動時／ローカルpython実行時）に必ず一度だけ呼び出す
-with app.app_context():
+# ── ここから追加 ────────────────────────────────────
+counters_started = False
+
+def start_counters():
+    global counters_started
+    if counters_started:
+        return
+    counters_started = True
+
+    # DB初期化（テーブル作成＋admin/タグ）
     initialize_db()
+
+    # CameraLine をキャッシュ
+    for cl in CameraLine.query.all():
+        current_line_params[cl.camera_id] = (
+            cl.x1, cl.y1, cl.x2, cl.y2, cl.in_side
+        )
+
+   # すべてのカメラでスレッドを立てる
+    cams = Camera.query.all()
+
+    with tracked_set_lock:
+        # ただし current_tracked_set には enabled=True のカメラだけを登録
+        current_tracked_set.clear()
+        current_tracked_set.update(cam.id for cam in cams if cam.enabled)
+    # run_counter スレッド起動
+    line_ratio = float(os.getenv('LINE_RATIO', 0.5))
+    from people_counter import run_counter
+    for cam in cams:
+        threading.Thread(
+            target=run_counter,
+            args=(cam.id, cam.stream_url, line_ratio),
+            daemon=True
+        ).start()
+# ── ここまで追加 ────────────────────────────────────
+
+
+
 
 # =============================================================================
 # アプリ起動（ローカル用）
 # =============================================================================
 if __name__ == '__main__':
+    # ローカル実行時も start_counters() で初期化＋スレッド起動
+    with app.app_context():
+        start_counters()
     app.run(host='0.0.0.0', port=8000)
 
     

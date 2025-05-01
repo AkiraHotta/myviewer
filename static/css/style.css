@@ -449,3 +449,73 @@ body{
   overflow-y:auto;                /* 縦スクロールを許可            */
   -webkit-overflow-scrolling:touch; /* iOS で慣性スクロールを有効化 */
 }
+
+.traffic-table { width:100%; border-collapse:collapse; }
+.traffic-table th { background:#f5f5f7; padding:.6rem; text-align:left; }
+.traffic-table td { border-top:1px solid #ddd; padding:.6rem; }
+
+/* 更新時に赤くフェード */
+@keyframes flash-red {
+  0%   { background-color: rgba(255, 99, 71, 0.8); }
+  100% { background-color: transparent; }
+}
+
+.traffic-table td.flash {
+  animation: flash-red 1s ease-out;
+}
+/* トラフィック画面の「追跡カメラを保存」ボタン */
+.btn-traffic-save {
+  padding: 0.6rem 1.5rem;
+  border-radius: 20px;
+  background: #ff9f0a;        /* オレンジ */
+  color: #1d1d1f;            /* 黒に近いグレー */
+  font-size: 1rem;
+  border: none;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+  cursor: pointer;
+  transition: background 0.3s;
+}
+.btn-traffic-save:hover {
+  background: #cc7a00;       /* 濃いオレンジ */
+  color: #fff;
+}
+
+/* ──────────── 境界線設定ボタンのスタイル ──────────── */
+.line-btn {
+  display: inline-block;
+  padding: 0.4rem 0.8rem;
+  border-radius: 10px;
+  background: #ff9f0a;       /* 明るいオレンジ */
+  color: #1d1d1f;            /* 黒に近いグレー */
+  font-size: 0.9rem;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  cursor: pointer;
+  transition: background 0.3s, color 0.3s;
+}
+
+.line-btn:hover {
+  background: #cc7a00;       /* 濃いオレンジ */
+  color: #fff;
+}
+
+/* 追跡状態ランプ */
+.lamp {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #999;       /* 初期はグレー（認識できない／未知） */
+  transition: background-color 0.3s;
+}
+
+/* ON */
+.lamp.on {
+  background-color: #34c759;    /* おしゃれな緑 */
+}
+
+/* OFF */
+.lamp.off {
+  background-color: #ff3b30;    /* おしゃれな赤 */
+}
+

@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>来場者状況</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+  <style>
+    /* テキスト選択禁止 */
+    .modal, .modal * {
+      user-select: none;
+      -webkit-user-select: none;
+      -ms-user-select: none;
+    }
+    .modal {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    .modal.show { display: flex; }
+    .modal-inner {
+      background: #fff;
+      border-radius: 8px;
+      width: 700px;
+      overflow: hidden;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    .start-area {
+      background: #fff;
+      padding: .5rem;
+      text-align: center;
+      cursor: crosshair;
+      font-size: .9rem;
+      border-bottom: 1px solid #ddd;
+    }
+    .video-container {
+      position: relative;
+      background: #000;
+    }
+    video {
+      width: 100%;
+      display: block;
+    }
+    #drawLayer {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: auto;
+      cursor: crosshair;
+    }
+    .modal-body {
+      padding: 1rem;
+    }
+    .instructions {
+      margin: 0;
+      font-size: .9rem;
+    }
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid #ddd;
+      padding: .5rem;
+      background: #f9f9f9;
+    }
+    .controls .cam-name {
+      font-weight: bold;
+    }
+    .controls button {
+      margin-left: .5rem;
+      padding: .4rem .8rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      color: #fff;
+    }
+    .btn-save  { background: #34c759; }
+    .btn-clear { background: #ff3b30; }
+    .btn-cancel{ background: #777; }
+  </style>
+</head>
+<body>
+
+  {% include 'header.html' %}
+
+  <main>
+    <h1>来場者状況</h1>
+  
+    <form id="trackForm" method="post" action="{{ url_for('update_tracked') }}">
+      <table class="traffic-table" style="width:100%;border-collapse:collapse">
+        <!-- 保存ボタン -->
+      <div style="margin-top:1rem;">
+        <button type="submit" class="btn-traffic-save">追跡カメラを保存</button>
+        <span style="margin-left:1rem; font-size:.9rem; color:#555;">
+             モデル: {{ config.YOLO_MODEL_TYPE }}
+        </span>
+
+
+
+
+      </div>
+        <thead>
+          <tr>
+            <th>追跡</th>
+            <th>状態</th>       <!-- ← 追加 -->
+            <th>カメラ名</th>
+            <th>入場者数</th>
+            <th>退場者数</th>
+            <th>滞在人数</th>
+            <th>混雑</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in data %}
+          <tr>
+            <!-- チェックボックス列 -->
+            <td style="text-align:center">
+              <input
+                type="checkbox"
+                name="tracked_cameras"
+                value="{{ row.camera.id }}"
+                {% if row.camera.enabled %}checked{% endif %}>
+            </td>
+            <td class="lamp-cell" style="text-align:center">
+              <span class="lamp" data-cam-id="{{ row.camera.id }}"></span>
+            </td>
+
+            <td>{{ row.camera.name }}</td>
+            <td>{{ row.total_in }}</td>
+            <td>{{ row.total_out }}</td>
+            <td>{{ row.stay }}</td>
+            <td>{{ row.status }}</td>
+            <td>
+              <button type="button" class="line-btn"
+                      data-cam="{{ row.camera.id }}"
+                      data-name="{{ row.camera.name }}"
+                      data-stream="{{ row.camera.stream_url }}">
+                境界線設定
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      
+    </form>
+  </main>
+
+  <!-- モーダル -->
+  <div class="modal" id="lineModal">
+    <div class="modal-inner">
+      <div class="start-area" id="startArea">
+        この白い枠内をドラッグして線をスタート
+      </div>
+      <div class="video-container" id="videoContainer">
+        <!-- preload="none" + visibility:hidden でキャッシュ防止 -->
+        <video id="camVideo" preload="none" muted playsinline style="visibility:hidden"></video>
+        <canvas id="drawLayer"></canvas>
+      </div>
+      <div class="modal-body">
+        <p class="instructions">
+          ①ドラッグで１本線（境界線）を引く／②動画内をダブルクリックで内側(IN)エリアを指定する。
+        </p>
+      </div>
+      <div class="controls">
+        <div>
+          <span class="cam-name" id="camName"></span>
+          <span style="margin-left:1rem">IN: <strong id="inCount">0</strong></span>
+          <span style="margin-left:.5rem">OUT: <strong id="outCount">0</strong></span>
+        </div>
+        <div>
+          <button class="btn-save"   id="saveBtn">保存</button>
+          <button class="btn-clear"  id="clearBtn">クリア</button>
+          <button class="btn-cancel" id="cancelBtn">キャンセル</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── 共通クリーンアップ（Hls.js とタイムアウト破棄／動画初期化）
+    function cleanupConfigVideo() {
+      const video = document.getElementById('camVideo');
+      if (video._hls) {
+        video._hls.destroy();
+        delete video._hls;
+      }
+      if (video._timeout) {
+        clearTimeout(video._timeout);
+        delete video._timeout;
+      }
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+      video.style.visibility = 'hidden';
+      delete video.dataset.loading;
+    }
+
+    // ── 再生開始
+    function play(url, videoId) {
+      const video = document.getElementById(videoId);
+      if (video.dataset.loading === '1') return;
+      video.dataset.loading = '1';
+
+      // iOS ネイティブHLS対応
+      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = url;
+        video.style.visibility = 'visible';
+        video.play().catch(console.warn);
+        return;
+      }
+
+      // Hls.js
+      if (window.Hls && Hls.isSupported()) {
+        const hls = new Hls();
+        video._hls = hls;
+        // 10秒で諦め
+        video._timeout = setTimeout(() => {
+          console.warn(`[${videoId}] timeout`);
+          cleanupConfigVideo();
+        }, 10000);
+
+        hls.loadSource(url);
+        hls.attachMedia(video);
+
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          clearTimeout(video._timeout);
+          video.style.visibility = 'visible';
+          video.play().catch(console.warn);
+        });
+
+        hls.on(Hls.Events.ERROR, () => {
+          cleanupConfigVideo();
+        });
+      } else {
+        // フォールバック
+        video.src = url;
+        video.style.visibility = 'visible';
+        video.play().catch(console.warn);
+      }
+    }
+
+    // ── 停止
+    function stop(videoId) {
+      const video = document.getElementById(videoId);
+      if (video.dataset.loading === '1' || video.src) {
+        cleanupConfigVideo();
+      }
+      video.style.visibility = 'hidden';
+    }
+
+    // --- 2. グローバル変数 ---
+    const modal          = document.getElementById('lineModal');
+    const startArea      = document.getElementById('startArea');
+    const video          = document.getElementById('camVideo');
+    const canvas         = document.getElementById('drawLayer');
+    const ctx            = canvas.getContext('2d');
+    const camName        = document.getElementById('camName');
+    const inCountLabel   = document.getElementById('inCount');
+    const outCountLabel  = document.getElementById('outCount');
+
+    let drawing     = false;
+    let line        = null;   // {x1,y1,x2,y2}
+    let inSide      = 'A';
+    let camId       = 0;
+    let countSource = null;   // SSE 用
+
+    // --- 3. Canvas リサイズ & 再描画 ---
+    function fitCanvas(){
+      canvas.width  = video.clientWidth;
+      canvas.height = video.clientHeight;
+      redraw();
+    }
+    function redraw(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      if(!line) return;
+      ctx.strokeStyle = '#ff3b30';
+      ctx.lineWidth   = 3;
+      ctx.beginPath();
+      ctx.moveTo(line.x1, line.y1);
+      ctx.lineTo(line.x2, line.y2);
+      ctx.stroke();
+    }
+
+    // --- 4. 赤枠シミュレーション ---
+    function simulateFill(){
+      if(!line) return;
+      const {x1,y1,x2,y2} = line;
+      const W = canvas.width, H = canvas.height;
+
+      function intersect(p1,p2,q1,q2){
+        const dx1=p2.x-p1.x, dy1=p2.y-p1.y;
+        const dx2=q2.x-q1.x, dy2=q2.y-q1.y;
+        const denom = dx1*dy2 - dy1*dx2;
+        if(Math.abs(denom)<1e-6) return null;
+        const t = ((q1.x-p1.x)*dy2 - (q1.y-p1.y)*dx2)/denom;
+        const u = ((q1.x-p1.x)*dy1 - (q1.y-p1.y)*dx1)/denom;
+        if(t<0||t>1||u<0||u>1) return null;
+        return { x: p1.x + t*dx1, y: p1.y + t*dy1 };
+      }
+
+      let pts = [];
+      [[0,0],[W,0],[W,H],[0,H]].forEach(([cx,cy])=>{
+        if (Math.sign((x2-x1)*(cy-y1)-(y2-y1)*(cx-x1)) * (inSide==='A'? -1:+1) > 0) {
+          pts.push({x:cx,y:cy});
+        }
+      });
+      const edges = [
+        [{x:0,y:0},{x:W,y:0}],
+        [{x:W,y:0},{x:W,y:H}],
+        [{x:W,y:H},{x:0,y:H}],
+        [{x:0,y:H},{x:0,y:0}],
+      ];
+      edges.forEach(([q1,q2])=>{
+        const ip = intersect({x:x1,y:y1},{x:x2,y:y2}, q1, q2);
+        if(ip) pts.push(ip);
+      });
+
+      const cx = pts.reduce((s,p)=>s+p.x,0)/pts.length;
+      const cy = pts.reduce((s,p)=>s+p.y,0)/pts.length;
+      pts.sort((a,b)=> Math.atan2(a.y-cy,a.x-cx) - Math.atan2(b.y-cy,b.x-cx));
+
+      redraw();
+      ctx.fillStyle = 'rgba(255,0,0,0.25)';
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      pts.slice(1).forEach(p=> ctx.lineTo(p.x,p.y));
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // --- 5. 既存ライン読み込み ---
+    function loadExistingLine(){
+      fetch(`/get_line/${camId}`)
+        .then(res=> res.ok? res.json(): Promise.reject())
+        .then(data=>{
+          line = {
+            x1: data.x1 * canvas.width,
+            y1: data.y1 * canvas.height,
+            x2: data.x2 * canvas.width,
+            y2: data.y2 * canvas.height
+          };
+          inSide = data.in_side;
+          redraw();
+          simulateFill();
+        })
+        .catch(()=>{/* 未設定なら無視 */});
+    }
+
+    // --- 6. SSE ストリーム開始 ---
+    function startCountStream(){
+      if(countSource) countSource.close();
+      countSource = new EventSource(`/stream_counts/${camId}`);
+      countSource.onmessage = e => {
+        const d = JSON.parse(e.data);
+        inCountLabel.textContent  = d.in;
+        outCountLabel.textContent = d.out;
+        redraw();
+        simulateFill();
+        d.pts.forEach(p => {
+          const px = p.x * canvas.width;
+          const py = p.y * canvas.height;
+          let col = 'yellow';
+          if (p.status==='in')  col = 'red';
+          if (p.status==='out') col = 'blue';
+          ctx.fillStyle = col;
+          ctx.beginPath();
+          ctx.arc(px, py, 8, 0, Math.PI*2);
+          ctx.fill();
+          ctx.fillStyle = 'white';
+          ctx.fillText(p.id, px+10, py-10);
+        });
+      };
+    }
+
+    // --- 7. イベントハンドラ ---
+    document.querySelectorAll('.line-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        cleanupConfigVideo();
+
+        camId = btn.dataset.cam;
+        camName.textContent = btn.dataset.name;
+        const stream = btn.dataset.stream;
+
+        // 新しい再生ロジックを呼び出し
+        play(stream, 'camVideo');
+
+        // メタデータ読み込み後に Canvas サイズ合わせ・既存ライン／SSE 開始
+        video.addEventListener('loadedmetadata', () => {
+          fitCanvas();
+          loadExistingLine();
+          startCountStream();
+        }, { once: true });
+
+        modal.classList.add('show');
+      });
+    });
+
+    // ── キャンセル時に停止も呼び出し
+    document.getElementById('cancelBtn').onclick = () => {
+      modal.classList.remove('show');
+      if (countSource) countSource.close();
+      resetLine();
+      cleanupConfigVideo();
+    };
+
+    // キャンセル
+    document.getElementById('cancelBtn').onclick = ()=>{
+      modal.classList.remove('show');
+      if(countSource) countSource.close();
+      resetLine();
+      cleanupConfigVideo();
+    };
+
+    // 保存
+    document.getElementById('saveBtn').onclick = ()=>{
+      if(!line) return alert('まず線を引いてください');
+      fetch(`/set_line/${camId}`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          x1: line.x1 / canvas.width,
+          y1: line.y1 / canvas.height,
+          x2: line.x2 / canvas.width,
+          y2: line.y2 / canvas.height,
+          in_side: inSide
+        })
+      }).then(()=>{
+        modal.classList.remove('show');
+        if(countSource) countSource.close();
+        resetLine();
+        cleanupConfigVideo();
+      });
+    };
+
+    // クリア
+    document.getElementById('clearBtn').onclick = ()=>{
+      fetch(`/clear_line/${camId}`, { method:'POST' })
+        .then(resetLine)
+        .catch(console.error);
+    };
+
+    // ドラッグ開始
+    startArea.addEventListener('mousedown', e=>{
+      e.preventDefault();
+      drawing = true;
+      const rect = video.getBoundingClientRect();
+      line = {
+        x1: e.clientX - rect.left,
+        y1: e.clientY - rect.top,
+        x2: e.clientX - rect.left,
+        y2: e.clientY - rect.top
+      };
+      redraw();
+    });
+
+    // ドラッグ中
+    canvas.addEventListener('mousemove', e=>{
+      if(!drawing) return;
+      line.x2 = e.offsetX;
+      line.y2 = e.offsetY;
+      redraw();
+    });
+
+    // マウス外で終了
+    videoContainer.addEventListener('mouseleave', ()=> drawing = false);
+
+    // ダブルクリックで IN/OUT 判定
+    canvas.addEventListener('dblclick', e => {
+      if (!line) return;
+      const { x1, y1, x2, y2 } = line;
+      const clickSide = Math.sign((x2 - x1)*(e.offsetY - y1) - (y2 - y1)*(e.offsetX - x1));
+      inSide = clickSide <= 0 ? 'A' : 'B';
+      simulateFill();
+    });
+
+
+    
+
+    // リセット
+    function resetLine(){
+      drawing = false;
+      line    = null;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+    }
+ 
+
+
+
+    // ハンバーガーメニュー制御
+    const menuToggle = document.querySelector('.menu-toggle');
+    const menu       = document.getElementById('menu');
+    if (menuToggle && menu) {
+      menuToggle.addEventListener('click', e=>{
+        e.stopPropagation();
+        menu.classList.toggle('show');
+      });
+      document.addEventListener('click', e=>{
+        if (!menu.contains(e.target) && !menuToggle.contains(e.target)) {
+          menu.classList.remove('show');
+        }
+      });
+    }
+
+    // ── ここにテーブル更新用の SSE を追加 ──────────────────
+    document.addEventListener('DOMContentLoaded', ()=> {
+  const tableSource = new EventSource('/stream_table');
+  tableSource.onmessage = e => {
+    const data = JSON.parse(e.data);
+    data.forEach(item => {
+      const row = document.querySelector(
+        `input[name="tracked_cameras"][value="${item.id}"]`
+      ).closest('tr');
+
+      // 追跡チェックボックス
+      const checkbox = row.querySelector(
+        `input[name="tracked_cameras"][value="${item.id}"]`
+      );
+      // ランプ要素
+      const lamp = row.querySelector(`.lamp[data-cam-id="${item.id}"]`);
+
+      // 通信状態＋追跡ON/OFF で色分け
+     if (!item.stream_ok) {
+       // 通信エラー → グレー
+       lamp.classList.remove('on','off');
+     } else if (checkbox.checked) {
+       // 通信OK ＆ 追跡ON → 緑
+       lamp.classList.add('on');
+       lamp.classList.remove('off');
+     } else {
+       // 通信OK ＆ 追跡OFF → 赤
+       lamp.classList.add('off');
+       lamp.classList.remove('on');
+     }
+
+      // 既存のセル更新処理…
+      const cells = {
+        in:   row.querySelector('td:nth-child(4)'),
+        out:  row.querySelector('td:nth-child(5)'),
+        stay: row.querySelector('td:nth-child(6)'),
+        stat: row.querySelector('td:nth-child(7)')
+      };
+      const updateCell = (cellElem, newValue) => {
+        if (cellElem.textContent !== String(newValue)) {
+          cellElem.textContent = newValue;
+          cellElem.classList.add('flash');
+          setTimeout(()=> cellElem.classList.remove('flash'), 1000);
+        }
+      };
+      updateCell(cells.in,   item.total_in);
+      updateCell(cells.out,  item.total_out);
+      updateCell(cells.stay, item.stay);
+      updateCell(cells.stat, item.status);
+    });
+  };
+});
+  </script>
+</body>
+</html>
