@@ -154,7 +154,7 @@ def run_counter(cam_id: int, url: str, line_ratio: float, show: bool = False):
             if cam_id not in current_tracked_set:
                 # ← ここにも追加
                 print(f"[run_counter] cam_id={cam_id} is NOT in tracked_set → sleeping")
-                time.sleep(1)
+                time.sleep(3)
                 continue
              # ← ここにも追加
         print(f"[run_counter] cam_id={cam_id} found in tracked_set → resuming")

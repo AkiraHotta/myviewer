@@ -470,7 +470,7 @@ def stream_counts(camera_id):
             payload = {'in': in_count, 'out': out_count, 'pts': pts}
             yield f"data: {json.dumps(payload)}\n\n"
 
-            time.sleep(1)
+            time.sleep(3)
 
     return Response(generate(), mimetype='text/event-stream')
 
@@ -518,7 +518,7 @@ def stream_table():
                 })
 
             yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
-            time.sleep(1)
+            time.sleep(3)
 
     return Response(stream_with_context(generate()),
                     mimetype='text/event-stream')
