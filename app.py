@@ -39,9 +39,10 @@ stream_ok = {}
 # ── ここまで追加 ──────────────────────────────
 
 
-app.secret_key = 'CHANGE_THIS_TO_A_SECRET_KEY'
-# app.secret_key = os.getenv('SECRET_KEY')
+#app.secret_key = 'CHANGE_THIS_TO_A_SECRET_KEY'
 
+# 環境変数から読み込む
+app.secret_key = os.getenv('SECRET_KEY')
 
 # --- データベース設定 ---
 DATABASE_URL = os.getenv('DATABASE_URL')
