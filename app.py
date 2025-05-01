@@ -558,7 +558,8 @@ def initialize_db():
     """テーブル作成と admin+全てのカメラタグ生成＋紐付けを行う"""
     db.create_all()
 
-    # adminユーザー
+    # ── adminユーザー生成 ─────────────────────
+
     admin = User.query.filter_by(username='admin').first()
     if not admin:
         admin = User(username='admin',
@@ -567,18 +568,39 @@ def initialize_db():
         db.session.add(admin)
         db.session.commit()
 
-    # 「全てのカメラ」タグ
+    # ── 「全てのカメラ」タグ生成 ───────────────
     all_tag = Tag.query.filter_by(tag_name='全てのカメラ').first()
     if not all_tag:
         all_tag = Tag(tag_name='全てのカメラ')
         db.session.add(all_tag)
         db.session.commit()
 
-    # admin にタグを紐付け
+    # ── admin に「全てのカメラ」タグを紐付け ────
     if not TagUser.query.filter_by(user_id=admin.id, tag_id=all_tag.id).first():
         TagUser.query.filter_by(user_id=admin.id).delete()
         db.session.add(TagUser(user_id=admin.id, tag_id=all_tag.id))
         db.session.commit()
+
+    # ── ★ここから追加：デフォルトカメラのシード──（⭐︎テスト環境追加）
+    default_cameras = [
+            ("MainLabo 1Ｆ RCC", "https://hls.myyou.jp/hls/stream2.m3u8"),
+            ("MainLabo 3Ｆ TpLink", "https://hls.myyou.jp/hls/stream1.m3u8"),
+            ("MainLabo 3Ｆ RCC",   "https://hls.myyou.jp/hls/stream3.m3u8"),
+            ("MainLabo 2Ｆ RCC",   "https://hls.myyou.jp/hls/stream4.m3u8"),
+            ("MainLabo 2Ｆ2 RCC",  "https://hls.myyou.jp/hls/stream5.m3u8")
+        ]
+    for name, url in default_cameras:
+            cam = Camera.query.filter_by(stream_url=url).first()
+            if not cam:
+                cam = Camera(name=name, stream_url=url, enabled=True)
+                db.session.add(cam)
+                db.session.commit()  # cam.id を確定させる
+            # その後に全てのカメラタグを紐付け
+            if not TagCamera.query.filter_by(tag_id=all_tag.id, camera_id=cam.id).first():
+                db.session.add(TagCamera(tag_id=all_tag.id, camera_id=cam.id))
+                db.session.commit()
+    # ── ★ここまで追加────────────────────────
+
 
     # 既存のカメラがあれば同タグに紐付け
     for cam in Camera.query.all():
