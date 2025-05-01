@@ -1,3 +1,8 @@
+from gevent import monkey
+monkey.patch_all()
+
+# ────────── ここから既存の import ──────────
+
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
