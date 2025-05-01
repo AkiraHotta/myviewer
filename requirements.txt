@@ -7,6 +7,6 @@ itsdangerous==2.2.0
 Werkzeug==3.1.3
 psycopg2-binary
 python-dotenv
-ultralytics==x.x.x
-opencv-python==x.x.x
-numpy==x.x.x
+ultralytics
+opencv-python
+numpy
