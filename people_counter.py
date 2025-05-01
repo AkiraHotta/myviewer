@@ -4,10 +4,14 @@ import os, sys
 project_root = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(project_root)
 
-# 実行中の __main__ から直接 current_tracked_set を持ってくる
-import __main__ as main_mod
-current_tracked_set = main_mod.current_tracked_set
-tracked_set_lock     = main_mod.tracked_set_lock
+# ローカル用実行中の __main__ から直接 current_tracked_set を持ってくる
+#import __main__ as main_mod
+#current_tracked_set = main_mod.current_tracked_set
+#tracked_set_lock     = main_mod.tracked_set_lock
+
+
+#render用 app.py 側で管理している current_tracked_set / tracked_set_lock を直接インポート
+from app import current_tracked_set, tracked_set_lock
 
 import argparse, time, datetime, math
 import cv2
