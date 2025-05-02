@@ -127,15 +127,19 @@ def run_counter(cam_id: int, url: str, line_ratio: float, show: bool = False):
     frame_count = 0
 
     while True:
-        # 追跡OFFならスリープしてスキップ
-        # 1秒に1回だけ処理
+        # --- 常にフレームを読み込む ---
+        ok, frame = cap.read()
+        if not ok:
+            time.sleep(3)
+            cap.open(url)
+            continue
+
+        # --- 1秒に1回だけ以降の処理を実行 ---
         now = time.time()
         if now - last_run < 1.0:
-            time.sleep(0.01)
             continue
         last_run = now
 
-        # 追跡OFFならスリープしてスキップ
         with tracked_set_lock:
             if cam_id not in current_tracked_set:
                 print(f"[run_counter] cam_id={cam_id} is NOT in tracked_set → sleeping")
@@ -143,14 +147,7 @@ def run_counter(cam_id: int, url: str, line_ratio: float, show: bool = False):
                 continue
         print(f"[run_counter] cam_id={cam_id} found in tracked_set → resuming")
 
-    # ── ここまで追加 ──────────────────────────────
-        ok, frame = cap.read()
         frame_count += 1
-        if not ok:
-            # 取得失敗時はリトライ
-            time.sleep(3)
-            cap.open(url)
-            continue
 
         # ── 動的に境界線情報を再取得 ──────────────────────
         with app.app_context():
