@@ -19,8 +19,14 @@ from app import current_tracked_set, tracked_set_lock
 import argparse, time, datetime, math
 import cv2
 import numpy as np
-from ultralytics import YOLO
 
+from ultralytics import YOLO
+from app import YOLO_MODEL_TYPE
+
+# ── ここで一度だけ読み込む ──
+MODEL_PATH = f"models/{YOLO_MODEL_TYPE}.pt"
+MODEL = YOLO(MODEL_PATH)
+print(f"[YOLO] loaded global model from {MODEL_PATH}")
 
 
 
@@ -125,21 +131,9 @@ def run_counter(cam_id: int, url: str, line_ratio: float, show: bool = False):
         return
 
     # モデルとトラッカー初期化
-    
-    from ultralytics import YOLO
-    import os
-
-    # app.py で読み込んだ設定を参照
-    from app import YOLO_MODEL_TYPE
-
-    # モデルファイル名を環境変数設定に合わせて決定
-    model_path = f"models/{YOLO_MODEL_TYPE}.pt"
-    model = YOLO(model_path)
-
-
-
-
-    print("[YOLO] model loaded.")
+    # グローバルにロード済みの MODEL を使い回す
+    model = MODEL
+    print("[run_counter] using global MODEL instance")
     tracker = CentroidTracker()
     prev    = {}  # id -> (side, y)
     status  = {}  # id -> 'in'/'out'
