@@ -619,42 +619,40 @@ def initialize_db():
             db.session.add(TagCamera(tag_id=all_tag.id, camera_id=cam.id))
     db.session.commit()
 
-
-
-# ── ここから追加 ──
+    # ── ここから追加 ──
     # 5) 新しいカメラを追加（名前とURLはスクリーンショットに合わせて）
-    # 5) カメラ名と URL のタプルをまとめてループ
-cameras_to_add = [
-    ('MainLabo１F RCC',  'https://hls.myyou.jp/hls/stream2.m3u8'),
-    ('MainLabo３F TpLink','https://hls.myyou.jp/hls/stream1.m3u8'),
-    ('MainLabo３F RCC',  'https://hls.myyou.jp/hls/stream3.m3u8'),
-    ('MainLabo２F RCC',  'https://hls.myyou.jp/hls/stream4.m3u8'),
-    ('MainLabo２F2 RCC', 'https://hls.myyou.jp/hls/stream5.m3u8'),
-]
+    cameras_to_add = [
+        ('MainLabo１F RCC',    'https://hls.myyou.jp/hls/stream2.m3u8'),
+        ('MainLabo３F TpLink', 'https://hls.myyou.jp/hls/stream1.m3u8'),
+        ('MainLabo３F RCC',    'https://hls.myyou.jp/hls/stream3.m3u8'),
+        ('MainLabo２F RCC',    'https://hls.myyou.jp/hls/stream4.m3u8'),
+        ('MainLabo２F2 RCC',   'https://hls.myyou.jp/hls/stream5.m3u8'),
+    ]
 
-for name, url in cameras_to_add:
-    cam = Camera.query.filter_by(name=name).first()
-    if not cam:
-        cam = Camera(name=name, stream_url=url, enabled=True)
-        db.session.add(cam)
-        db.session.commit()
-        db.session.add(TagCamera(tag_id=all_tag.id, camera_id=cam.id))
-        db.session.commit()
-    # 6) 各カメラに垂直ラインを設定
-    line = CameraLine.query.get(cam.id)
-    if not line:
-        db.session.add(CameraLine(
-            camera_id=cam.id,
-            x1=0.5, y1=0.0,
-            x2=0.5, y2=1.0,
-            in_side='A'
-        ))
-        db.session.commit()
+    for name, url in cameras_to_add:
+        cam = Camera.query.filter_by(name=name).first()
+        if not cam:
+            cam = Camera(name=name, stream_url=url, enabled=True)
+            db.session.add(cam)
+            db.session.commit()
+            # タグ紐付け
+            db.session.add(TagCamera(tag_id=all_tag.id, camera_id=cam.id))
+            db.session.commit()
+
+        # 6) 各カメラに垂直ラインを設定（中央縦線、左をIN、右をOUT）
+        line = CameraLine.query.get(cam.id)
+        if not line:
+            db.session.add(CameraLine(
+                camera_id=cam.id,
+                x1=0.5, y1=0.0,
+                x2=0.5, y2=1.0,
+                in_side='A'
+            ))
+            db.session.commit()
+    # ── ここまで initialize_db() ──────────────────
 
 
-# ── ↑ ここまで initialize_db() ──────────────────
-
-# ── ここから追加 ────────────────────────────────────
+# ── カウンタースレッド起動用 ────────────────────────────────
 counters_started = False
 
 def start_counters():
@@ -672,13 +670,12 @@ def start_counters():
             cl.x1, cl.y1, cl.x2, cl.y2, cl.in_side
         )
 
-   # すべてのカメラでスレッドを立てる
+    # すべてのカメラでスレッドを立てる
     cams = Camera.query.all()
-
     with tracked_set_lock:
-        # ただし current_tracked_set には enabled=True のカメラだけを登録
         current_tracked_set.clear()
         current_tracked_set.update(cam.id for cam in cams if cam.enabled)
+
     # run_counter スレッド起動
     line_ratio = float(os.getenv('LINE_RATIO', 0.5))
     from people_counter import run_counter
@@ -688,9 +685,6 @@ def start_counters():
             args=(cam.id, cam.stream_url, line_ratio),
             daemon=True
         ).start()
-# ── ここまで追加 ────────────────────────────────────
-
-
 
 
 # =============================================================================
