@@ -1,5 +1,6 @@
 # people_counter.py
-#ローカル運用ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+
+#ローカル用
 #import os, sys
 #project_root = os.path.dirname(os.path.abspath(__file__))
 #sys.path.append(project_root)
@@ -8,13 +9,10 @@
 #import __main__ as main_mod
 #current_tracked_set = main_mod.current_tracked_set
 #tracked_set_lock     = main_mod.tracked_set_lock
-#ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
 
-# render運用ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
-import os, sys
-# Flask アプリのグローバル変数を直接 import
-from app import current_tracked_set, tracked_set_lock
-#ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+
+# render用
+from app import current_tracked_set, tracked_set_lock, YOLO_MODEL_TYPE
 
 import argparse, time, datetime, math
 import cv2
@@ -101,10 +99,9 @@ def log_event(cam_id: int, direction: str):
 
 def run_counter(cam_id: int, url: str, line_ratio: float, show: bool = False):
     
-    import time
-    last_run = 0.0
+    # ← ここから追加
     print(f"[run_counter START] cam_id={cam_id}, initial tracked_set={current_tracked_set}")
-
+    # ← ここまで追加
 
     from app import app, model   # ← app.model（グローバルYOLOモデル）を参照
     from app import CameraLine  # モデルをループ内で使うため事前にimport
@@ -128,21 +125,14 @@ def run_counter(cam_id: int, url: str, line_ratio: float, show: bool = False):
 
     while True:
         # 追跡OFFならスリープしてスキップ
-        # 1秒に1回だけ処理
-        now = time.time()
-        if now - last_run < 1.0:
-            time.sleep(0.01)
-            continue
-        last_run = now
-
-        # 追跡OFFならスリープしてスキップ
         with tracked_set_lock:
             if cam_id not in current_tracked_set:
+                # ← ここにも追加
                 print(f"[run_counter] cam_id={cam_id} is NOT in tracked_set → sleeping")
                 time.sleep(1)
                 continue
+             # ← ここにも追加
         print(f"[run_counter] cam_id={cam_id} found in tracked_set → resuming")
-
     # ── ここまで追加 ──────────────────────────────
         ok, frame = cap.read()
         frame_count += 1
@@ -201,11 +191,15 @@ def run_counter(cam_id: int, url: str, line_ratio: float, show: bool = False):
             for oid,(cx,cy) in objs.items()
         ]
 
-        # ウィンドウ表示
+        # ウィンドウ表示（GUIがある場合）
         if show:
             cv2.imshow(f"Cam{cam_id}", frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            # 200ms待ちながらキー入力＆GUIイベントを処理
+            if cv2.waitKey(200) & 0xFF == ord('q'):
                 break
+        else:
+            # GUIなし（headless）の場合はスリープでFPS制限
+            time.sleep(0.2)
 
     cap.release()
     if show:
