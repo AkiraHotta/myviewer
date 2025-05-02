@@ -591,7 +591,7 @@ def initialize_db():
     """テーブル作成と admin+全てのカメラタグ生成＋紐付けを行う"""
     db.create_all()
 
-    # adminユーザー
+    # 1) admin ユーザー
     admin = User.query.filter_by(username='admin').first()
     if not admin:
         admin = User(username='admin',
@@ -600,24 +600,58 @@ def initialize_db():
         db.session.add(admin)
         db.session.commit()
 
-    # 「全てのカメラ」タグ
+    # 2) 「全てのカメラ」タグ
     all_tag = Tag.query.filter_by(tag_name='全てのカメラ').first()
     if not all_tag:
         all_tag = Tag(tag_name='全てのカメラ')
         db.session.add(all_tag)
         db.session.commit()
 
-    # admin にタグを紐付け
+    # 3) admin にタグを紐付け
     if not TagUser.query.filter_by(user_id=admin.id, tag_id=all_tag.id).first():
         TagUser.query.filter_by(user_id=admin.id).delete()
         db.session.add(TagUser(user_id=admin.id, tag_id=all_tag.id))
         db.session.commit()
 
-    # 既存のカメラがあれば同タグに紐付け
+    # 4) 既存のカメラがあれば「全てのカメラ」タグを紐付け
     for cam in Camera.query.all():
         if not TagCamera.query.filter_by(tag_id=all_tag.id, camera_id=cam.id).first():
             db.session.add(TagCamera(tag_id=all_tag.id, camera_id=cam.id))
     db.session.commit()
+
+
+
+# ── ここから追加 ──
+    # 5) 新しいカメラを追加（名前とURLはスクリーンショットに合わせて）
+    # 5) カメラ名と URL のタプルをまとめてループ
+cameras_to_add = [
+    ('MainLabo１F RCC',  'https://hls.myyou.jp/hls/stream2.m3u8'),
+    ('MainLabo３F TpLink','https://hls.myyou.jp/hls/stream1.m3u8'),
+    ('MainLabo３F RCC',  'https://hls.myyou.jp/hls/stream3.m3u8'),
+    ('MainLabo２F RCC',  'https://hls.myyou.jp/hls/stream4.m3u8'),
+    ('MainLabo２F2 RCC', 'https://hls.myyou.jp/hls/stream5.m3u8'),
+]
+
+for name, url in cameras_to_add:
+    cam = Camera.query.filter_by(name=name).first()
+    if not cam:
+        cam = Camera(name=name, stream_url=url, enabled=True)
+        db.session.add(cam)
+        db.session.commit()
+        db.session.add(TagCamera(tag_id=all_tag.id, camera_id=cam.id))
+        db.session.commit()
+    # 6) 各カメラに垂直ラインを設定
+    line = CameraLine.query.get(cam.id)
+    if not line:
+        db.session.add(CameraLine(
+            camera_id=cam.id,
+            x1=0.5, y1=0.0,
+            x2=0.5, y2=1.0,
+            in_side='A'
+        ))
+        db.session.commit()
+
+
 # ── ↑ ここまで initialize_db() ──────────────────
 
 # ── ここから追加 ────────────────────────────────────
