@@ -11,10 +11,15 @@ sys.path.append(project_root)
 #tracked_set_lock     = main_mod.tracked_set_lock
 
 #render用
-from app import current_tracked_set, tracked_set_lock
+from app import current_tracked_set, tracked_set_lock, YOLO_MODEL_TYPE
 
 #選択するーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
-
+# ── ここで “一度だけ” モデルをロード ───────────────────────
+from ultralytics import YOLO
+MODEL_PATH = f"models/{YOLO_MODEL_TYPE}.pt"
+MODEL = YOLO(MODEL_PATH)
+print(f"[YOLO] loaded global model from {MODEL_PATH}")
+# ────────────────────────────────────────────────────
 
 import argparse, time, datetime, math
 import cv2
@@ -23,10 +28,7 @@ import numpy as np
 from ultralytics import YOLO
 from app import YOLO_MODEL_TYPE
 
-# ── ここで一度だけ読み込む ──
-MODEL_PATH = f"models/{YOLO_MODEL_TYPE}.pt"
-MODEL = YOLO(MODEL_PATH)
-print(f"[YOLO] loaded global model from {MODEL_PATH}")
+
 
 
 
