@@ -1,8 +1,3 @@
-from gevent import monkey
-monkey.patch_all()
-
-# ────────── ここから既存の import ──────────
-
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
@@ -19,16 +14,26 @@ import threading
 import threading
 from threading import Lock
 from dotenv import load_dotenv
+import cv2  # [LAMP] ストリーム確認用に必要
 
 
 
 load_dotenv()  # ← ここで.env読み込み
+
+
 
 YOLO_MODEL_TYPE = os.getenv("YOLO_MODEL_TYPE", "yolov8n") 
 
 app = Flask(__name__)
 
 app.config["YOLO_MODEL_TYPE"] = YOLO_MODEL_TYPE
+
+# ── ここから追加 ──────────────────────────────
+# [LAMP-FAIL] ストリーム失敗回数カウント用キャッシュ
+stream_failures = {}        # cam_id -> 連続失敗回数
+MAX_FAILURES   = 3          # 3回連続失敗でグレーに戻す
+# ── ここまで追加 ──────────────────────────────
+
 
 # ── ここから追加 ──────────────────────────────
 # 現在追跡中のカメラIDを管理するセット（スレッドセーフにするためLock付き）
@@ -39,15 +44,12 @@ tracked_set_lock = Lock()
 # メモリ上に最新のラインパラメータを保持する dict
 # key: camera_id, value: (x1, y1, x2, y2, in_side)
 current_line_params = {}
-# 各カメラのストリーム接続正常かを記録する dict (True=OK, False=異常)
-stream_ok = {}
 # ── ここまで追加 ──────────────────────────────
 
 
-#app.secret_key = 'CHANGE_THIS_TO_A_SECRET_KEY'
+app.secret_key = 'CHANGE_THIS_TO_A_SECRET_KEY'
+# app.secret_key = os.getenv('SECRET_KEY')
 
-# 環境変数から読み込む
-app.secret_key = os.getenv('SECRET_KEY')
 
 # --- データベース設定 ---
 DATABASE_URL = os.getenv('DATABASE_URL')
@@ -457,7 +459,26 @@ def stream_counts(camera_id):
                 date=today
             ).count() or 0
 
-            # ③ last_positions[camera_id] はリストなので、.items() ではなく for で回す
+            
+
+            # ④ 最終的に in/out と pts を一緒に送信
+            payload = {'in': in_count, 'out': out_count}   # [COUNT]
+            yield f"data: {json.dumps(payload)}\n\n"
+
+            time.sleep(60)  # [LAMP-COUNT] 60秒ごとに送信
+
+    return Response(generate(), mimetype='text/event-stream')
+
+
+@app.route('/stream_markers/<int:camera_id>')
+@login_required
+def stream_markers(camera_id):  # [MARKER]
+    from people_counter import last_positions
+
+    @stream_with_context
+    def generate():
+        while True:
+            # マーカー情報だけ取得
             pts = []
             try:
                 for p in last_positions.get(camera_id, []):
@@ -465,19 +486,18 @@ def stream_counts(camera_id):
                         'id':     p['id'],
                         'x':      p['x'],
                         'y':      p['y'],
-                        'status': p.get('status')   # 'in' / 'out' / None
+                        'status': p.get('status')
                     })
-            except Exception as e:
-                # もし何かおかしくても、in/out は必ず送る
+            except:
                 pts = []
 
-            # ④ 最終的に in/out と pts を一緒に送信
-            payload = {'in': in_count, 'out': out_count, 'pts': pts}
-            yield f"data: {json.dumps(payload)}\n\n"
+            yield f"data: {json.dumps({'pts': pts})}\n\n"
 
-            time.sleep(3)
+            time.sleep(3)  # [MARKER] 3秒ごとに送信
 
     return Response(generate(), mimetype='text/event-stream')
+
+
 
 @app.route('/stream_table')
 @login_required
@@ -489,41 +509,49 @@ def stream_table():
             # 各カメラの in/out/stay/status を集計
             rows = db.session.query(
                 Camera.id,
-                func.sum(
-       case(
-           (VisitorEvent.direction == 'in', 1),
-           else_=0
-       )
-   ).label('total_in'),
-   func.sum(
-       case(
-           (VisitorEvent.direction == 'out', 1),
-           else_=0
-       )
-   ).label('total_out')
+                Camera.stream_url,  # [LAMP] URL追加
+                func.sum(case((VisitorEvent.direction == 'in', 1), else_=0)).label('total_in'),
+                func.sum(case((VisitorEvent.direction == 'out', 1), else_=0)).label('total_out')
             ).outerjoin(VisitorEvent, 
                 (VisitorEvent.camera_id==Camera.id)&(VisitorEvent.date==today)
             ).group_by(Camera.id).all()
 
             data = []
-            for cam_id, total_in, total_out in rows:
-                total_in  = total_in  or 0
+            for cam_id, stream_url, total_in, total_out in rows:
+                total_in  = total_in or 0
                 total_out = total_out or 0
                 stay      = total_in - total_out
                 status    = '空き' if stay<=0 else ('通常' if stay<=30 else '混雑')
-                
-                from app import stream_ok
+
+                 # ── ここから [LAMP-FAIL] 失敗回数カウント導入 ───────────
+                ok = False
+                try:
+                    cap = cv2.VideoCapture(stream_url)
+                    ok, _ = cap.read()
+                    cap.release()
+                except:
+                    ok = False
+
+                if ok:
+                    stream_failures[cam_id] = 0
+                else:
+                    stream_failures[cam_id] = stream_failures.get(cam_id, 0) + 1
+
+                # 連続失敗回数が MAX_FAILURES 未満なら OK、それ以外は NG
+                display_ok = (stream_failures.get(cam_id, 0) < MAX_FAILURES)
+                # ── ここまで [LAMP-FAIL] ───────────────────────────
+
                 data.append({
-                    'id':         cam_id,
-                    'total_in':   total_in,
-                    'total_out':  total_out,
-                    'stay':       stay,
-                    'status':     status,
-                    'stream_ok':  bool(stream_ok.get(cam_id, False))
+                    'id':        cam_id,
+                    'total_in':  total_in,
+                    'total_out': total_out,
+                    'stay':      stay,
+                    'status':    status,
+                    'stream_ok': ok  # [LAMP] 配信状況を追加
                 })
 
             yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
-            time.sleep(3)
+            time.sleep(5)  # [LAMP] 長めにして負荷軽減
 
     return Response(stream_with_context(generate()),
                     mimetype='text/event-stream')
@@ -563,8 +591,7 @@ def initialize_db():
     """テーブル作成と admin+全てのカメラタグ生成＋紐付けを行う"""
     db.create_all()
 
-    # ── adminユーザー生成 ─────────────────────
-
+    # adminユーザー
     admin = User.query.filter_by(username='admin').first()
     if not admin:
         admin = User(username='admin',
@@ -573,57 +600,18 @@ def initialize_db():
         db.session.add(admin)
         db.session.commit()
 
-    # ── 「全てのカメラ」タグ生成 ───────────────
+    # 「全てのカメラ」タグ
     all_tag = Tag.query.filter_by(tag_name='全てのカメラ').first()
     if not all_tag:
         all_tag = Tag(tag_name='全てのカメラ')
         db.session.add(all_tag)
         db.session.commit()
 
-    # ── admin に「全てのカメラ」タグを紐付け ────
+    # admin にタグを紐付け
     if not TagUser.query.filter_by(user_id=admin.id, tag_id=all_tag.id).first():
         TagUser.query.filter_by(user_id=admin.id).delete()
         db.session.add(TagUser(user_id=admin.id, tag_id=all_tag.id))
         db.session.commit()
-
-    # ── ★ここから追加：デフォルトカメラのシード──（⭐︎テスト環境追加）
-
-    #
-
-
-    default_cameras = [
-            ("MainLabo 1Ｆ RCC", "https://hls.myyou.jp/hls/stream2.m3u8"),
-            ("MainLabo 3Ｆ TpLink", "https://hls.myyou.jp/hls/stream1.m3u8"),
-            ("MainLabo 3Ｆ RCC",   "https://hls.myyou.jp/hls/stream3.m3u8"),
-            ("MainLabo 2Ｆ RCC",   "https://hls.myyou.jp/hls/stream4.m3u8"),
-            ("MainLabo 2Ｆ2 RCC",  "https://hls.myyou.jp/hls/stream5.m3u8")
-        ]
-    for name, url in default_cameras:
-            cam = Camera.query.filter_by(stream_url=url).first()
-            if not cam:
-                cam = Camera(name=name, stream_url=url, enabled=True)
-                db.session.add(cam)
-                db.session.commit()  # cam.id を確定させる
-            # その後に全てのカメラタグを紐付け
-            if not TagCamera.query.filter_by(tag_id=all_tag.id, camera_id=cam.id).first():
-                db.session.add(TagCamera(tag_id=all_tag.id, camera_id=cam.id))
-                db.session.commit()
-
-    #── デフォルト境界線を一括シード ─────────────────
-    for cam in Camera.query.all():
-            if not CameraLine.query.get(cam.id):
-                cl = CameraLine(
-                    camera_id=cam.id,
-                    x1=0.0, y1=0.5,
-                    x2=1.0, y2=0.5,
-                    in_side='A'
-                )
-                db.session.add(cl)
-    db.session.commit()
-
-                
-    # ── ★ここまで追加────────────────────────
-
 
     # 既存のカメラがあれば同タグに紐付け
     for cam in Camera.query.all():
@@ -679,5 +667,3 @@ if __name__ == '__main__':
     with app.app_context():
         start_counters()
     app.run(host='0.0.0.0', port=8000)
-
-    

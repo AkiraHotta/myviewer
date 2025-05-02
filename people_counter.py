@@ -4,14 +4,10 @@ import os, sys
 project_root = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(project_root)
 
-# ローカル用実行中の __main__ から直接 current_tracked_set を持ってくる
-#import __main__ as main_mod
-#current_tracked_set = main_mod.current_tracked_set
-#tracked_set_lock     = main_mod.tracked_set_lock
-
-
-#render用 app.py 側で管理している current_tracked_set / tracked_set_lock を直接インポート
-from app import current_tracked_set, tracked_set_lock
+# 実行中の __main__ から直接 current_tracked_set を持ってくる
+import __main__ as main_mod
+current_tracked_set = main_mod.current_tracked_set
+tracked_set_lock     = main_mod.tracked_set_lock
 
 import argparse, time, datetime, math
 import cv2
@@ -99,12 +95,11 @@ def log_event(cam_id: int, direction: str):
 def run_counter(cam_id: int, url: str, line_ratio: float, show: bool = False):
     
 
-    from app import stream_ok
-    # 起動時は「OK」としておく
-    stream_ok[cam_id] = True
-    print(f"[run_counter START] cam_id={cam_id}, initial tracked_set={current_tracked_set}")
+    
 
-   
+    # ← ここから追加
+    print(f"[run_counter START] cam_id={cam_id}, initial tracked_set={current_tracked_set}")
+    # ← ここまで追加
 
 
 
@@ -120,12 +115,7 @@ def run_counter(cam_id: int, url: str, line_ratio: float, show: bool = False):
     cap = cv2.VideoCapture(url)
     if not cap.isOpened():
         print(f"[Cam{cam_id}] Cannot open stream: {url}")
-        
-        # ストリームオープンに失敗 → 異常とマーク
-        stream_ok[cam_id] = False
         return
-    
-    
 
     # モデルとトラッカー初期化
     
@@ -154,24 +144,18 @@ def run_counter(cam_id: int, url: str, line_ratio: float, show: bool = False):
             if cam_id not in current_tracked_set:
                 # ← ここにも追加
                 print(f"[run_counter] cam_id={cam_id} is NOT in tracked_set → sleeping")
-                time.sleep(3)
+                time.sleep(1)
                 continue
              # ← ここにも追加
         print(f"[run_counter] cam_id={cam_id} found in tracked_set → resuming")
     # ── ここまで追加 ──────────────────────────────
         ok, frame = cap.read()
         frame_count += 1
-       
         if not ok:
-            # フレーム取得失敗 → 異常とマーク
-            stream_ok[cam_id] = False
+            # 取得失敗時はリトライ
             time.sleep(3)
             cap.open(url)
             continue
-
-        # フレーム取得成功 → OK に戻す
-        if not stream_ok.get(cam_id):
-            stream_ok[cam_id] = True
 
         # ── 動的に境界線情報を再取得 ──────────────────────
         with app.app_context():

@@ -269,8 +269,8 @@
     let line        = null;   // {x1,y1,x2,y2}
     let inSide      = 'A';
     let camId       = 0;
-    let countSource = null;   // SSE 用
-
+    let countSource = null;    // SSE 用（IN/OUT）
+    let markersSource = null;  // [MARKER] SSE 用（マーカー）
     // --- 3. Canvas リサイズ & 再描画 ---
     function fitCanvas(){
       canvas.width  = video.clientWidth;
@@ -356,28 +356,39 @@
     // --- 6. SSE ストリーム開始 ---
     function startCountStream(){
       if(countSource) countSource.close();
-      countSource = new EventSource(`/stream_counts/${camId}`);
-      countSource.onmessage = e => {
-        const d = JSON.parse(e.data);
-        inCountLabel.textContent  = d.in;
-        outCountLabel.textContent = d.out;
-        redraw();
-        simulateFill();
-        d.pts.forEach(p => {
-          const px = p.x * canvas.width;
-          const py = p.y * canvas.height;
-          let col = 'yellow';
-          if (p.status==='in')  col = 'red';
-          if (p.status==='out') col = 'blue';
-          ctx.fillStyle = col;
-          ctx.beginPath();
-          ctx.arc(px, py, 8, 0, Math.PI*2);
-          ctx.fill();
-          ctx.fillStyle = 'white';
-          ctx.fillText(p.id, px+10, py-10);
-        });
+        countSource = new EventSource(`/stream_counts/${camId}`);  // [COUNT]
+        countSource.onmessage = e => {
+          const d = JSON.parse(e.data);
+          inCountLabel.textContent  = d.in;
+          outCountLabel.textContent = d.out;
+        
       };
     }
+    // --- [MARKER] マーカーストリーム開始 ---
+function startMarkerStream(){
+  if(markersSource) markersSource.close();
+  markersSource = new EventSource(`/stream_markers/${camId}`);
+  markersSource.onmessage = e => {
+    const d = JSON.parse(e.data);
+    // 画面クリア→線と塗りつぶしを再描画
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    if(line){ redraw(); simulateFill(); }
+    // マーカー描画
+    d.pts.forEach(p => {
+      const px = p.x * canvas.width;
+      const py = p.y * canvas.height;
+      let col = 'yellow';
+      if (p.status==='in')  col = 'red';
+      if (p.status==='out') col = 'blue';
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.arc(px, py, 8, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = 'white';
+      ctx.fillText(p.id, px+10, py-10);
+    });
+  };
+}
 
     // --- 7. イベントハンドラ ---
     document.querySelectorAll('.line-btn').forEach(btn => {
@@ -395,7 +406,8 @@
         video.addEventListener('loadedmetadata', () => {
           fitCanvas();
           loadExistingLine();
-          startCountStream();
+          startCountStream();   // [COUNT]
+          startMarkerStream();  // [MARKER]
         }, { once: true });
 
         modal.classList.add('show');
@@ -405,7 +417,8 @@
     // ── キャンセル時に停止も呼び出し
     document.getElementById('cancelBtn').onclick = () => {
       modal.classList.remove('show');
-      if (countSource) countSource.close();
+      if (countSource)   countSource.close();
+      if (markersSource) markersSource.close();  // [MARKER]
       resetLine();
       cleanupConfigVideo();
     };
