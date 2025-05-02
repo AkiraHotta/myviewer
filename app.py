@@ -13,7 +13,6 @@ from flask import Response, stream_with_context
 import threading
 import threading
 from threading import Lock
-from dotenv import load_dotenv
 import cv2  # [LAMP] ストリーム確認用に必要
 
 
@@ -23,6 +22,14 @@ load_dotenv()  # ← ここで.env読み込み
 
 
 YOLO_MODEL_TYPE = os.getenv("YOLO_MODEL_TYPE", "yolov8n") 
+
+# ── ここから YOLO モデルをグローバルに１回だけロード ──
+from ultralytics import YOLO
+model = YOLO(f"models/{YOLO_MODEL_TYPE}.pt")
+print(f"[YOLO] global model loaded: models/{YOLO_MODEL_TYPE}.pt")
+# ── ここまで追加 ─────────────────────────────────
+
+
 
 app = Flask(__name__)
 
@@ -685,6 +692,12 @@ def start_counters():
             args=(cam.id, cam.stream_url, line_ratio),
             daemon=True
         ).start()
+
+
+
+# ── ここまで追加 ────────────────────────────────────
+
+
 
 
 # =============================================================================

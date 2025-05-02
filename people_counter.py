@@ -1,32 +1,24 @@
 # people_counter.py
+#ローカル運用ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+#import os, sys
+#project_root = os.path.dirname(os.path.abspath(__file__))
+#sys.path.append(project_root)
 
-import os, sys
-project_root = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(project_root)
-
-# ローカル用実行中の __main__ から直接 current_tracked_set を持ってくる
-#選択するーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+# 実行中の __main__ から直接 current_tracked_set を持ってくる
 #import __main__ as main_mod
 #current_tracked_set = main_mod.current_tracked_set
 #tracked_set_lock     = main_mod.tracked_set_lock
+#ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
 
-#render用
-from app import current_tracked_set, tracked_set_lock, YOLO_MODEL_TYPE
-
-#選択するーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
-# ── ここで “一度だけ” モデルをロード ───────────────────────
-from ultralytics import YOLO
-MODEL_PATH = f"models/{YOLO_MODEL_TYPE}.pt"
-MODEL = YOLO(MODEL_PATH)
-print(f"[YOLO] loaded global model from {MODEL_PATH}")
-# ────────────────────────────────────────────────────
+# render運用ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+import os, sys
+# Flask アプリのグローバル変数を直接 import
+from app import current_tracked_set, tracked_set_lock
+#ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
 
 import argparse, time, datetime, math
 import cv2
 import numpy as np
-
-from ultralytics import YOLO
-from app import YOLO_MODEL_TYPE
 
 
 
@@ -109,16 +101,12 @@ def log_event(cam_id: int, direction: str):
 
 def run_counter(cam_id: int, url: str, line_ratio: float, show: bool = False):
     
-
-    
-
-    # ← ここから追加
+    import time
+    last_run = 0.0
     print(f"[run_counter START] cam_id={cam_id}, initial tracked_set={current_tracked_set}")
-    # ← ここまで追加
 
 
-
-    from app import app
+    from app import app, model   # ← app.model（グローバルYOLOモデル）を参照
     from app import CameraLine  # モデルをループ内で使うため事前にimport
 
 
@@ -132,10 +120,7 @@ def run_counter(cam_id: int, url: str, line_ratio: float, show: bool = False):
         print(f"[Cam{cam_id}] Cannot open stream: {url}")
         return
 
-    # モデルとトラッカー初期化
-    # グローバルにロード済みの MODEL を使い回す
-    model = MODEL
-    print("[run_counter] using global MODEL instance")
+    
     tracker = CentroidTracker()
     prev    = {}  # id -> (side, y)
     status  = {}  # id -> 'in'/'out'
@@ -143,14 +128,21 @@ def run_counter(cam_id: int, url: str, line_ratio: float, show: bool = False):
 
     while True:
         # 追跡OFFならスリープしてスキップ
+        # 1秒に1回だけ処理
+        now = time.time()
+        if now - last_run < 1.0:
+            time.sleep(0.01)
+            continue
+        last_run = now
+
+        # 追跡OFFならスリープしてスキップ
         with tracked_set_lock:
             if cam_id not in current_tracked_set:
-                # ← ここにも追加
                 print(f"[run_counter] cam_id={cam_id} is NOT in tracked_set → sleeping")
                 time.sleep(1)
                 continue
-             # ← ここにも追加
         print(f"[run_counter] cam_id={cam_id} found in tracked_set → resuming")
+
     # ── ここまで追加 ──────────────────────────────
         ok, frame = cap.read()
         frame_count += 1
