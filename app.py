@@ -14,16 +14,18 @@ app.secret_key = 'CHANGE_THIS_TO_A_SECRET_KEY'
 # app.secret_key = os.getenv('SECRET_KEY')
 
 
-# --- データベース設定 ---
-DATABASE_URL = os.getenv('DATABASE_URL')
-if DATABASE_URL:
-    app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL  # Render用(PostgreSQL)
-else:
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///cameras.db'  # ローカル用(SQLite)
+# --- データベース設定（SQLite だけに統一） -------------------------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# Render では環境変数 SQLITE_DB_PATH=/var/data/cameras.db を渡す
+default_db_path = os.path.join(BASE_DIR, 'cameras.db')
+db_path = os.getenv('SQLITE_DB_PATH', default_db_path)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
+# ---------------------------------------------------------------
 
 # --- モデル定義 ---
 class Camera(db.Model):
