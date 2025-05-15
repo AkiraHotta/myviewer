@@ -17,6 +17,9 @@ CORS(app, resources={r"/hls/*": {"origins": "*"}})  # ← 追加
 
 app.secret_key = 'CHANGE_THIS_TO_A_SECRET_KEY'
 # app.secret_key = os.getenv('SECRET_KEY')
+# ── 永続ディスク上のSQLiteパスを環境変数から取得 ─────────────────
+sqlite_path = os.getenv('SQLITE_DB_PATH', '/var/data/cameras.db')
+os.makedirs(os.path.dirname(sqlite_path), exist_ok=True)
 
 
 # --- データベース設定 ---
@@ -24,7 +27,7 @@ DATABASE_URL = os.getenv('DATABASE_URL')
 if DATABASE_URL:
     app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL  # Render用(PostgreSQL)
 else:
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///cameras.db'  # ローカル用(SQLite)
+    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{sqlite_path}"
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
