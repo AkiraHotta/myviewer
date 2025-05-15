@@ -8,12 +8,16 @@
    <link rel="stylesheet" 
         href="{{ url_for('static', filename='css/style.css') }}">
   
-
+  <!-- 既存のリンクやスクリプトのあとに追加 -->
+  <meta name="theme-color" content="#ff0000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" sizes="192x192"
         href="{{ url_for('static', filename='icon-192.png') }}">
   <!-- 必要なら512も並べる -->
   <link rel="apple-touch-icon" sizes="512x512"
         href="{{ url_for('static', filename='icon-512.png') }}">
+
   <style>
     /* フォームコンテナ */
     .controls > div {
