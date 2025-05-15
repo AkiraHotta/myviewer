@@ -20,7 +20,8 @@ app.secret_key = 'CHANGE_THIS_TO_A_SECRET_KEY'
 # ── 永続ディスク上のSQLiteパスを環境変数から取得 ─────────────────
 sqlite_path = os.getenv('SQLITE_DB_PATH', '/var/data/cameras.db')
 os.makedirs(os.path.dirname(sqlite_path), exist_ok=True)
-
+print("▶ SQLITE_DB_PATH:", sqlite_path)
+print("▶ Exists before create_all?", os.path.exists(sqlite_path))
 
 # --- データベース設定 ---
 DATABASE_URL = os.getenv('DATABASE_URL')
@@ -300,6 +301,8 @@ def update_user(user_id):
 def initialize_db():
     """テーブル作成と admin+全てのカメラタグ生成＋紐付けを行う"""
     db.create_all()
+    print("▶ initialize_db() connecting to:", app.config['SQLALCHEMY_DATABASE_URI'])
+    print("▶ DB file exists at init?", os.path.exists(sqlite_path)) 
 
     # adminユーザー
     admin = User.query.filter_by(username='admin').first()
