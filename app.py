@@ -4,11 +4,13 @@ from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 import os
+from flask_cors import CORS
 
 load_dotenv()  # ← ここで.env読み込み
 
 app = Flask(__name__)
 
+CORS(app, resources={r"/hls/*": {"origins": "*"}})  # ← 追加
 
 app.secret_key = 'CHANGE_THIS_TO_A_SECRET_KEY'
 # app.secret_key = os.getenv('SECRET_KEY')

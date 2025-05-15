@@ -45,7 +45,7 @@
         <h2>{{ camera.name }}</h2>
         <video id="video-{{ camera.id }}"
                muted controls playsinline preload="none"
-               data-src="{{ camera.stream_url }}"
+               data-src="{{ url_for('proxy_hls', filename=camera.stream_url) }}"
                style="visibility:hidden;"></video>
       </div>
     {% endfor %}
