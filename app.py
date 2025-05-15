@@ -5,6 +5,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 import os
 from flask_cors import CORS
+import requests
+from flask import Response
+
 
 load_dotenv()  # ← ここで.env読み込み
 
@@ -113,7 +116,17 @@ def index():
                            camera_tag_map=camera_tag_map)
 
 
-
+@app.route('/hls/<path:filename>')
+def proxy_hls(filename):
+    upstream = f"https://hls.myyou.jp/hls/{filename}"
+    # ストリーミング対応で stream=True
+    r = requests.get(upstream, stream=True)
+    # 転送禁止ヘッダーを除外
+    excluded = ['content-encoding','content-length','transfer-encoding','connection']
+    headers = [(n, v) for n, v in r.raw.headers.items() if n.lower() not in excluded]
+    # CORS ヘッダー追記
+    headers.append(('Access-Control-Allow-Origin', '*'))
+    return Response(r.raw, status=r.status_code, headers=headers)
 
 @app.route('/camera', methods=['GET','POST'])
 @login_required
