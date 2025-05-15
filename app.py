@@ -136,6 +136,7 @@ def proxy_hls(filename):
 @app.route('/camera', methods=['GET','POST'])
 @login_required
 def camera():
+    print("▶ GOT /camera", request.method, request.form.to_dict())
     if request.method == 'POST':
         name = request.form['camera_name']
         url_ = request.form['stream_url']

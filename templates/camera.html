@@ -26,7 +26,7 @@
 
     <h1>カメラ管理</h1>
     
-    <form method="post" class="controls">
+    <form method="post" action="{{ url_for('camera') }}" class="controls">
       <input type="text" name="camera_name" placeholder="カメラ名" required>
       <input type="text" name="stream_url" placeholder="HLS URL" required>
       <button type="submit">登録</button>
