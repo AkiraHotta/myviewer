@@ -4,10 +4,25 @@ from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 import os
-
+from flask_cors import CORS
+from flask import send_from_directory
 load_dotenv()  # ← ここで.env読み込み
 
 app = Flask(__name__)
+
+# ── ここから追加 ──
+# /static/* と /hls/*（.m3u8, .ts）に CORS を許可
+CORS(app, resources={
+    r"/static/*": {"origins": "*"},
+    r"/hls/*":    {"origins": "*"}
+})
+# ── ここまで ──
+
+# HLS ファイル配信用ルート（static の外にあってもOK）
+@app.route('/hls/<path:filename>')
+def proxy_hls(filename):
+    # /opt/hls/stream1.m3u8 などを返す
+    return send_from_directory('/opt/hls', filename)
 
 
 app.secret_key = 'CHANGE_THIS_TO_A_SECRET_KEY'
@@ -321,4 +336,4 @@ with app.app_context():
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000)
 
-    
+
