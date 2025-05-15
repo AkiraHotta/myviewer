@@ -10,7 +10,6 @@ from flask import Response
 
 
 load_dotenv()  # ← ここで.env読み込み
-
 app = Flask(__name__)
 
 CORS(app, resources={r"/hls/*": {"origins": "*"}})  # ← 追加
